@@ -5,7 +5,7 @@
 
 ## English
 
-Extension [YesWiki](https://yeswiki.net/) to have twolevels on pages or entries (need 4.3 or 4.2.2 + zfuture43)
+Extension [YesWiki](https://yeswiki.net/) to have twolevels list in bazar
 
 ### Authors
 
@@ -27,7 +27,7 @@ Developpers of this extension can not be responsible of consequences of the usag
 
 ## Français
 
-Extension [YesWiki](https://yeswiki.net/) pour avoir des statistiques sur la consultation des pages ou des fiches (nécessite 4.3 ou 4.2.2 + zfuture43)
+Extension [YesWiki](https://yeswiki.net/) pur avoir des listes à deux niveaux dans bazar
 
 ### Auteurs
 
