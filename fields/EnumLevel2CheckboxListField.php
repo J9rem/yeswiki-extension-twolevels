@@ -11,16 +11,15 @@
 
 namespace YesWiki\Twolevels\Field;
 
-use Psr\Container\ContainerInterface;
-use YesWiki\Bazar\Field\EnumField;
+use YesWiki\Bazar\Field\CheckboxField;
 use YesWiki\Twolevels\Field\EnumLevel2Commons;
 
 require_once('tools/twolevels/fields/EnumLevel2CommonsField.php');
 
 /**
- * @Field({"enumlevel2"})
+ * @Field({"enumlevel2checkbox"})
  */
-class EnumLevel2Field extends EnumField implements EnumLevel2Commons
+class EnumLevel2CheckboxListField extends CheckboxField implements EnumLevel2Commons
 {
     use EnumLevel2CommonsTrait;
     protected $displayMethod ;

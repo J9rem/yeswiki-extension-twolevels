@@ -28,6 +28,4 @@ return [
     'TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE' => 'Formulaire - sélection par liste',
     'TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL' => 'Champ parent',
     'TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT' => 'Nom du champ dans ce formulaire',
-    'TWOLEVELS_ENUM_FIELD_PARENTFORMID_LABEL' => 'Id form parent',
-    'TWOLEVELS_ENUM_FIELD_PARENTFORMID_HINT' => 'Facultatif',
 ];

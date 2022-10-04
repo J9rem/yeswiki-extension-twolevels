@@ -34,7 +34,7 @@ var updateEnum2LevelList = function (element) {
 };
 var initEnum2Level = function(){
   $(".enumlevel2-field")
-  .find("select[name=enumSubtype]:not(.initialized)")
+  .find("select[name=subtype]:not(.initialized)")
   .change(function(event){updateEnum2LevelList(event.target)})
   .trigger("change");
 };
@@ -51,11 +51,7 @@ typeUserAttrs = {
           label: _t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL'),
           value: ""
         },
-        parentFormId: {
-          label: _t('TWOLEVELS_ENUM_FIELD_PARENTFORMID_LABEL'),
-          value: ""
-        },
-        enumSubtype: {
+        subtype: {
           label: _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LABEL'),
           options: {
             "checkbox": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOX'),
@@ -106,7 +102,6 @@ templates = {
         onRender: function(){
           initEnum2Level();
           templateHelper.defineLabelHintForGroup(field,'parentFieldName',_t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT'));
-          templateHelper.defineLabelHintForGroup(field,'parentFormId',_t('TWOLEVELS_ENUM_FIELD_PARENTFORMID_HINT'));
         },
       };
     },
@@ -119,7 +114,8 @@ yesWikiMapping = {
     enumlevel2: {
       ...lists,
       ...{
-        7: "enumSubtype"
+        3: "parentFieldName",
+        7: "subtype"
       }
     },
   }
@@ -132,122 +128,16 @@ fields.push({
     icon: '<i class="fas fa-list-ul"></i>',
   });
 
-// transform a json object like "{ type: 'texte', name: 'bf_titre', label: 'Nom' .... }"
-// into wiki text like "texte***bf_titre***Nom***255***255*** *** *** ***1***0***"
-if (typeof formatJsonDataIntoWikiText == "undefined"){
-  var formatJsonDataIntoWikiText = null;
-}
-formatJsonDataIntoWikiText = function(formData) {
-  if (formData.length == 0) return null;
-  var wikiText = "";
-
-  for (var i = 0; i < formData.length; i++) {
-    var wikiProps = {};
-    var formElement = formData[i];
-    var mapping = yesWikiMapping[formElement.type];
-
-    for (var type in yesWikiTypes)
-      if (
-        formElement.type == yesWikiTypes[type].type &&
-        (!formElement.subtype ||
-          !yesWikiTypes[type].subtype ||
-          formElement.subtype == yesWikiTypes[type].subtype) &&
-        (!formElement.subtype2 ||
-          formElement.subtype2 == yesWikiTypes[type].subtype2)
-      ) {
-        wikiProps[0] = type;
-        break;
-      }
-    // for non mapped fields, we just keep the form type
-    if (!wikiProps[0]) wikiProps[0] = formElement.type;
-    
-    // fix for url field which can be build with textField or urlField
-    if (wikiProps[0]) wikiProps[0] = wikiProps[0].replace('_bis', '') 
-
-    for (var key in mapping) {
-      var property = mapping[key];
-      if (property != "type") {
-        var value = formElement[property];
-        if (["required", "access"].indexOf(property) > -1)
-          value = value ? "1" : "0";
-        if (property == "label"){
-          wikiProps[key] = removeBR(value).replace(/\n$/gm,"");
-        } else {
-          wikiProps[key] = value ;
-        }
-      }
-    }
-    // === customized part ====
-    if (formElement.type == "enumlevel2") {
-      wikiProps["3"] = `${formElement.parentFieldName || ''}|${formElement.parentFormId || ''}`;
-    }
-    // === end of customized part ====
-
-    maxProp = Math.max.apply(Math, Object.keys(wikiProps));
-    for (var j = 0; j <= maxProp; j++) {
-      wikiText += wikiProps[j] || " ";
-      wikiText += "***";
-    }
-    wikiText += "\n";
-  }
-  return wikiText;
-}
-
-// transform text with wiki text like "texte***bf_titre***Nom***255***255*** *** *** ***1***0***"
-// into a json object "{ type: 'texte', name: 'bf_titre', label: 'Nom' .... }"
-if (typeof parseWikiTextIntoJsonData == "undefined"){
-  var parseWikiTextIntoJsonData = null;
-}
-parseWikiTextIntoJsonData= function(text) {
-  var result = [];
-  var text = text.trim();
-  var textFields = text.split("\n");
-  for (var i = 0; i < textFields.length; i++) {
-    var textField = textFields[i];
-    var fieldValues = textField.split("***");
-    var fieldObject = {};
-    if (fieldValues.length > 1) {
-      var wikiType = fieldValues[0];
-      var fieldType =
-        wikiType in yesWikiTypes ? yesWikiTypes[wikiType].type : wikiType;
-      // check that the fieldType really exists in our form builder
-      if (!(fieldType in yesWikiMapping)) fieldType = "custom";
-
-      var mapping = yesWikiMapping[fieldType];
-
-      fieldObject["type"] = fieldType;
-      fieldObject["subtype"] =
-        wikiType in yesWikiTypes ? yesWikiTypes[wikiType].subtype : "";
-      fieldObject["subtype2"] =
-        wikiType in yesWikiTypes ? yesWikiTypes[wikiType].subtype2 : "";
-      var start = fieldType == "custom" ? 0 : 1;
-      for (var j = start; j < fieldValues.length; j++) {
-        var value = fieldValues[j];
-        var field = mapping && j in mapping ? mapping[j] : j;
-        if (field == "required") value = value == "1" ? true : false;
-        if (field){
-          if (field == "read" || field == "write" || field == "comment"){
-            fieldObject[field] = (value.trim() === "") ? [" * "] : value.split(',');
-          } else {
-            fieldObject[field] = value;
-          }
-        }
-      }
-      if (!fieldObject.label) {
-        fieldObject.label = wikiType;
-        for (var k = 0; k < fields.length; k++)
-          if (fields[k].name == wikiType) fieldObject.label = fields[k].label;
-      }
-      
-      // === customized part ====
-      if (wikiType == "enumlevel2") {
-        let options = (fieldValues[3] || '').split('|');
-        fieldObject.parentFieldName = options[0] || '';
-        fieldObject.parentFormId = options[1] || '';
-      }
-      // === end of customized part ====
-      result.push(fieldObject);
+yesWikiTypes = {
+  ...yesWikiTypes,
+  ...{
+    enumlevel2checkboxfiche: {
+      type: "enumlevel2",
+      subtype: "checkboxfiche"
+    },
+    enumlevel2checkboxfichetags: {
+      type: "enumlevel2",
+      subtype: "checkboxfichetags"
     }
   }
-  return result;
-}
+};
