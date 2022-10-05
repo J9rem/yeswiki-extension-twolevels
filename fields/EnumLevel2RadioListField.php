@@ -11,15 +11,15 @@
 
 namespace YesWiki\Twolevels\Field;
 
-use YesWiki\Bazar\Field\CheckboxEntryField;
+use YesWiki\Bazar\Field\RadioListField;
 use YesWiki\Twolevels\Field\EnumLevel2Commons;
 
 require_once('tools/twolevels/fields/EnumLevel2CommonsField.php');
 
 /**
- * @Field({"enumlevel2checkboxfiche","enumlevel2checkboxfichetags","enumlevel2checkboxfichedragndrop"})
+ * @Field({"enumlevel2radio","enumlevel2radiotags"})
  */
-class EnumLevel2CheckboxEntryField extends CheckboxEntryField implements EnumLevel2Commons
+class EnumLevel2RadioListField extends RadioListField implements EnumLevel2Commons
 {
     use EnumLevel2CommonsTrait;
     /**
@@ -28,6 +28,6 @@ class EnumLevel2CheckboxEntryField extends CheckboxEntryField implements EnumLev
      */
     public function getInternalFieldType(): string
     {
-        return 'checkboxfiche';
+        return 'radio';
     }
 }

@@ -21,14 +21,15 @@ const enumlevel2Helper = {
         importElement: function(element){
             let propertyName = element.dataset.fieldPropertyname || '';
             let parentFieldName = element.dataset.fieldParentFieldname || '';
+            let fieldName = element.dataset.fieldName || '';
             if (propertyName.length > 0 && parentFieldName.length > 0){
-                this.levels2[propertyName] = {parentFieldName};
+                this.levels2[propertyName] = {parentFieldName,fieldName};
                 let field = this.findField(propertyName);
                 if (field && typeof field == "object"){
                     this.levels2[propertyName].type = field.type;
                     this.levels2[propertyName].node = field.hasOwnProperty('node') ? field.node : null ;
                     this.levels2[propertyName].nodes = field.hasOwnProperty('nodes') ? field.nodes : null ;
-                    this.levels2[propertyName].formId = field.formId ;
+                    this.levels2[propertyName].linkedObjectId = field.linkedObjectId ;
                     if (this.parents.hasOwnProperty(parentFieldName)){
                         this.levels2[propertyName].parentId = parentFieldName;
                         this.parents[parentFieldName].childrenIds.push(propertyName);
@@ -39,7 +40,7 @@ const enumlevel2Helper = {
                                 type: field.type,
                                 node: field.hasOwnProperty('node') ? field.node : null,
                                 nodes: field.hasOwnProperty('nodes') ? field.nodes : null,
-                                formId: field.formId,
+                                linkedObjectId: field.linkedObjectId,
                                 childrenIds: [propertyName]
                             }
                             this.levels2[propertyName].parentId = parentFieldName
@@ -48,15 +49,28 @@ const enumlevel2Helper = {
                 }
             }
         },
-        extractFormIdForCheckox: function (classList){
-            let formId = "";
-            classList.forEach((className)=>{
-                let match = className.match(/^group-checkbox-(?:checkboxfiche|enumlevel2)([0-9]*)[A-Za-z0-9_\-]+$/)
+        extractLinkedObjectIdForCheckox: function (node, mode = "group-checkbox-", type = "checkbox"){
+            let linkedObjectId = "";
+            let fieldPropertyName = "";
+            node.classList.forEach((className)=>{
+                let match = className.match(new RegExp(`^${mode}((?:${type}fiche[0-9]*|${type}Liste[A-Za-z0-9\-_]+)[A-Za-z0-9_\\-]*)$`))
                 if (match && match[1].length > 0){
-                    formId = match[1]
+                    fieldPropertyName = match[1] ;
                 }
             });
-            return formId;
+            if (fieldPropertyName.length > 0){
+                let fieldName = "[A-Za-z0-9_\\-]*";
+                if (this.levels2.hasOwnProperty(fieldPropertyName) 
+                    && this.levels2[fieldPropertyName].fieldName.length > 0){
+                    fieldName = this.levels2[fieldPropertyName].fieldName
+                }
+                
+                let match = fieldPropertyName.match(new RegExp(`^(?:${type}fiche([0-9]*)|${type}(Liste[A-Za-z0-9\-_]+))${fieldName}$`))
+                if (match && ((match[1] && match[1].length > 0) || (match[2] && match[2].length > 0))){
+                    linkedObjectId = match[1] ?? match[2];
+                }
+            }
+            return linkedObjectId;
         },
         findCheckbox: function(fieldName){
             let elements = document.querySelectorAll(`ul[class*="group-checkbox-"][class*="${fieldName}"],div[class*="group-checkbox-"][class*="${fieldName}"]`);
@@ -84,18 +98,8 @@ const enumlevel2Helper = {
             return (inputsNodes.length == 0) ? null : {
                 type: "checkbox",
                 nodes: inputsNodes,
-                formId: this.extractFormIdForCheckox(filteredElements[0].classList) // keep only the first one
+                linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0]) // keep only the first one
             };
-        },
-        extractFormIdForCheckoxDragAndDrop: function (classList){
-            let formId = "";
-            classList.forEach((className)=>{
-                let match = className.match(/^group-(?:checkboxfiche|enumlevel2)([0-9]*)[A-Za-z0-9_\-]+$/)
-                if (match && match[1].length > 0){
-                    formId = match[1]
-                }
-            });
-            return formId;
         },
         findCheckboxDragAndDrop: function(fieldName){
             let elements = document.querySelectorAll(`ul.list-group[class*="group-"][class*="${fieldName}"]`);
@@ -123,29 +127,36 @@ const enumlevel2Helper = {
             return (inputsNodes.length == 0) ? null : {
                 type: "checkboxdraganddrop",
                 nodes: inputsNodes,
-                formId: this.extractFormIdForCheckoxDragAndDrop(filteredElements[0].classList) // keep only the first one
+                linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0],"group-") // keep only the first one
             };
-        },
-        extractFormIdForCheckoxTag: function (classList){
-            let formId = "";
-            classList.forEach((className)=>{
-                let match = className.match(/^(?:radiofiche|checkboxfiche|enumlevel2)([0-9]*)[A-Za-z0-9_\-]+$/)
-                if (match && match[1].length > 0){
-                    formId = match[1]
-                }
-            });
-            return formId;
         },
         findCheckboxTag: function(fieldName){            
             let elements = document.querySelectorAll(`input[class$=${fieldName}].yeswiki-input-entries`);
-            return (!elements || elements.length == 0) ? null : {
+            if (!elements || elements.length == 0) return null
+            let linkedObjectId = this.extractLinkedObjectIdForCheckox(elements[0],"yeswiki-input-entries"); // keep only the first one
+            if (!linkedObjectId || linkedObjectId.length == 0){
+                linkedObjectId = this.extractLinkedObjectIdForCheckox(elements[0],"yeswiki-input-entries","radio"); // keep only the first one
+            }
+            return {
                     type: "checkboxtag",
                     node: elements[0],
-                    formId: this.extractFormIdForCheckox(filteredElements[0].classList) // keep only the first one
+                    linkedObjectId: linkedObjectId
                 };
         },
-        extractFormIdForList: function (name){
-            return ((name).match(/^(?:listefiche|enumlevel2)([0-9]*)[A-Za-z0-9_\-]+$/) || ["",""])[1];
+        extractLinkedObjectIdForRadioOrListe: function (name, type){
+            let linkedObjectId = "";
+            if (name.length > 0){
+                let fieldName = "[A-Za-z0-9_\\-]*";
+                if (this.levels2.hasOwnProperty(name) 
+                    && this.levels2[name].fieldName.length > 0){
+                    fieldName = this.levels2[name].fieldName
+                }
+                let match = name.match(new RegExp(`^(?:${type}fiche([0-9]*)|${type}(Liste[A-Za-z0-9\-_]+))${fieldName}$`))
+                if (match && ((match[1] && match[1].length > 0) || (match[2] && match[2].length > 0))){
+                    linkedObjectId = match[1] ?? match[2];
+                }
+            }
+            return linkedObjectId;
         },
         findList: function(fieldName){
             let elements = document.querySelectorAll(`select[name$=${fieldName}]`);
@@ -154,11 +165,8 @@ const enumlevel2Helper = {
                 : {
                     type: "select",
                     node: elements[0],
-                    formId: this.extractFormIdForList(elements[0].getAttribute('name'))
+                    linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"liste")
                 };
-            },
-        extractFormIdForRadio: function (name){
-            return ((name).match(/^(?:radiofiche|enumlevel2)([0-9]*)[A-Za-z0-9_\-]+$/) || ["",""])[1];
         },
         findRadio: function(fieldName){
             let elements = document.querySelectorAll(`input[name$=${fieldName}][type=radio]`);
@@ -172,7 +180,7 @@ const enumlevel2Helper = {
             return {
                     type: "radio",
                     nodes: inputsNodes,
-                    formId: this.extractFormIdForRadio(elements[0].getAttribute('name'))
+                    linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"radio")
             };
         },
         findField: function(name){
@@ -200,7 +208,7 @@ const enumlevel2Helper = {
             let values = [];
             let value = node.value;
             if (value.trim() != ""){
-                values = value.split(",");
+                values = value.split(",").map((val)=>String(val));
             }
             return values;
         },
@@ -267,10 +275,12 @@ const enumlevel2Helper = {
         appendChildrenFieldsPropertyNamestoParentForm: function(form,parentField){
             if (!form.hasOwnProperty('childrenFieldsPropertyNames')){
                 form.childrenFieldsPropertyNames = {};
-                parentField.childrenIds.forEach((childId)=>{
-                    let childFormId = this.levels2[childId].formId;
-                    // TODO manage Liste instead of formId
-                    if (childFormId.length > 0){
+            }
+            parentField.childrenIds.forEach((childId)=>{
+                if (!form.childrenFieldsPropertyNames.hasOwnProperty(childId)){
+                    form.childrenFieldsPropertyNames[childId] = {};
+                    let childLinkedObjectId= this.levels2[childId].linkedObjectId;
+                    if (childLinkedObjectId.length > 0){
                         let prepared = (Array.isArray(form.prepared))
                             ? form.prepared
                             : (
@@ -278,19 +288,16 @@ const enumlevel2Helper = {
                                 ? Object.values(form.prepared)
                                 : []
                             );
-
+    
                         prepared.forEach((field)=> {
                             if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                                .includes(field.type) && field.linkedObjectName == childFormId){
-                                if (!form.childrenFieldsPropertyNames.hasOwnProperty(childId)){
-                                    form.childrenFieldsPropertyNames[childId] = {};
-                                }
+                                .includes(field.type) && field.linkedObjectName == childLinkedObjectId){
                                 form.childrenFieldsPropertyNames[childId][field.propertyname] = field
                             }
                         });
                     }
-                });
-            }
+                }
+            });
         },
         asyncGetEntry: function (entryId,nextFunction){
             if (this.entries.hasOwnProperty(entryId)){
@@ -415,6 +422,87 @@ const enumlevel2Helper = {
                         })
                         return;
                     case "checkboxtag":
+                        let $node = $(field.node);
+                        let tagsInput = $node.tagsinput();
+                        if (tagsInput && Array.isArray(tagsInput) && tagsInput.length > 0){
+                            tagsInput = tagsInput[0];
+                            let tagsInputCurrentOptions = tagsInput.options;
+                            let currentAvailableValues = (
+                                tagsInputCurrentOptions.typeahead && 
+                                typeof tagsInputCurrentOptions.typeahead.source == "function"
+                            ) ? tagsInputCurrentOptions.typeahead.source() : [];
+                            if (!Array.isArray(currentAvailableValues)){
+                                currentAvailableValues = [];
+                            }
+                            let defaultAvailableValues = currentAvailableValues
+                            if (!field.node.dataset.hasOwnProperty('defaultAvailableValues')){
+                                field.node.dataset.defaultAvailableValues = JSON.stringify(defaultAvailableValues);
+                            } else {
+                                defaultAvailableValues = JSON.parse(field.node.dataset.defaultAvailableValues);
+                            }
+                            let selectedValues = $node.val();
+                            selectedValues = (selectedValues == "") ? [] : selectedValues.split(",");
+                            selectedValues.map((val)=>{String(val)});
+                            let backupSelectedValues = 
+                                field.node.dataset.hasOwnProperty('backupSelectedValues')
+                                ? JSON.parse(field.node.dataset.backupSelectedValues)
+                                : [];
+                            let newValuesIds = [];
+                            let newValues = {};
+                            Object.keys(defaultAvailableValues).forEach((key)=>{
+                                let currentValue = String(defaultAvailableValues[key].id);
+                                if (secondLevelValues[childId].includes(currentValue)){
+                                    if (!newValuesIds.includes(currentValue)){
+                                        newValuesIds.push(currentValue)
+                                        newValues[currentValue] = defaultAvailableValues[key]
+                                    }
+                                    if (backupSelectedValues.includes(currentValue)){
+                                        backupSelectedValues = backupSelectedValues.filter((val)=>val!=currentValue);
+                                        if (!selectedValues.includes(currentValue)){
+                                            selectedValues.push(currentValue)
+                                        }
+                                    }
+                                } else if (selectedValues.includes(currentValue)){
+                                    selectedValues = selectedValues.filter((val)=>val!=currentValue);
+                                    if (!backupSelectedValues.includes(currentValue)){
+                                        backupSelectedValues.push(currentValue)
+                                    }
+                                }
+                            });
+                            // reset tagsinput
+                            $node.tagsinput('destroy');
+                            let newoptions = {
+                                itemValue: 'id',
+                                itemText: 'title',
+                                typeahead: {
+                                    afterSelect: function(val) { $node.tagsinput('input').val(""); },
+                                    source: Object.values(newValues),
+                                    autoSelect: false,
+                                },
+                                freeInput: false,
+                                confirmKeys: [13, 186, 188]
+                            };
+                            if (childId.match(/^radio.*/)){
+                                newoptions.maxTags = 1
+                                if (selectedValues.length > 0){
+                                    let firstValue = selectedValues.shift();
+                                    selectedValues.forEach((val)=>{
+                                        if (!backupSelectedValues.includes(val)){
+                                            backupSelectedValues.push(val)
+                                        }
+                                    });
+                                    selectedValues = [firstValue];
+                                }
+                            }
+                            $node.tagsinput(newoptions)
+                            selectedValues.forEach((val)=>{
+                                if (newValues.hasOwnProperty(val)){
+                                    $node.tagsinput('add',newValues[val])
+                                }
+                            });
+                            field.node.dataset.backupSelectedValues = JSON.stringify(backupSelectedValues)
+                        }
+                        return ;
                     case "radio":
                         let radioBtnToCheck = [];
                         field.nodes.forEach((node)=>{
@@ -488,21 +576,27 @@ const enumlevel2Helper = {
             let event = new Event("change");
             nodesForWhatDispatchChangeEvent.forEach((node)=>{node.dispatchEvent(event)});
         },
-        updateChildren: function(parentField){
-            if (parentField.formId.length > 0){
-                let values = this.getParentFieldNameValues(parentField);
-                this.asyncGetForm(parentField.formId,(form)=>{
-                    this.asyncGetAvailableSecondLevelsValues(form,parentField,values,(secondLevelValues)=>{
-                        this.updateSecondLevel(secondLevelValues);
-                    });
-                })
+        asyncUpdateChildren: function(parentsFields){
+            if (Array.isArray(parentsFields)){
+                let parentField = parentsFields.shift();
+                if (parentField && parentField.linkedObjectId.length > 0){
+                    let values = this.getParentFieldNameValues(parentField);
+                    this.asyncGetForm(parentField.linkedObjectId,(form)=>{
+                        this.asyncGetAvailableSecondLevelsValues(form,parentField,values,(secondLevelValues)=>{
+                            this.updateSecondLevel(secondLevelValues);
+                            if (parentsFields.length > 0){
+                                this.asyncUpdateChildren(parentsFields);
+                            }
+                        });
+                    })
+                }
             }
         },
         resolveChange: function(parentFieldName){
             if (!this.parents.hasOwnProperty(parentFieldName)){
                 return null;
             }
-            this.updateChildren(this.parents[parentFieldName]);
+            this.asyncUpdateChildren([this.parents[parentFieldName]]);
         },
         registerTriggersOnParents: function(){
             for (const parentFieldName in this.parents){
@@ -527,9 +621,7 @@ const enumlevel2Helper = {
             }
             this.registerTriggersOnParents();
             // init
-            for (const parentFieldName in this.parents){
-                this.updateChildren(this.parents[parentFieldName]);
-            }
+            this.asyncUpdateChildren(Object.values(this.parents));
         }
     },
     initData: function(){

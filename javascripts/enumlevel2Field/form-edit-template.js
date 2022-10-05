@@ -60,14 +60,12 @@ typeUserAttrs = {
             "checkboxtags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXTAGS'),
             "radiotags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOTAGS'),
             "checkboxdragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXDRAGNDROP'),
-            "radiodragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIODRAGNDROP'),
             "checkboxfiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHE'),
             "radiofiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHE'),
             "listefiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE'),
             "checkboxfichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHETAGS'),
             "radiofichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHETAGS'),
             "checkboxfichedragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHEDRAGNDROP'),
-            "radiofichedragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHEDRAGNDROP'),
           },
         }
       },
@@ -124,20 +122,24 @@ yesWikiMapping = {
 fields.push({
     label: _t('TWOLEVELS_ENUM_FIELD_LABEL'),
     name: "enumlevel2",
-    attrs: { type: "enumlevel2" },
+    attrs: { type: "enumlevel2", subtype:"checkbox" },
     icon: '<i class="fas fa-list-ul"></i>',
   });
 
 yesWikiTypes = {
   ...yesWikiTypes,
   ...{
-    enumlevel2checkboxfiche: {
-      type: "enumlevel2",
-      subtype: "checkboxfiche"
-    },
-    enumlevel2checkboxfichetags: {
-      type: "enumlevel2",
-      subtype: "checkboxfichetags"
-    }
+    enumlevel2checkbox: {type: "enumlevel2",subtype: "checkbox"},
+    enumlevel2checkboxdragndrop: {type: "enumlevel2",subtype: "checkboxdragndrop"},
+    enumlevel2checkboxtags: {type: "enumlevel2",subtype: "checkboxtags"},
+    enumlevel2checkboxfiche: {type: "enumlevel2",subtype: "checkboxfiche"},
+    enumlevel2checkboxfichedragndrop: {type: "enumlevel2",subtype: "checkboxfichedragndrop"},
+    enumlevel2checkboxfichetags: {type: "enumlevel2",subtype: "checkboxfichetags"},
+    enumlevel2radio: {type: "enumlevel2",subtype: "radio"},
+    enumlevel2radiotags: {type: "enumlevel2",subtype: "radiotags"},
+    enumlevel2radiofiche: {type: "enumlevel2",subtype: "radiofiche"},
+    enumlevel2radiofichetags: {type: "enumlevel2",subtype: "radiofichetags"},
+    enumlevel2liste: {type: "enumlevel2",subtype: "liste"},
+    enumlevel2listefiche: {type: "enumlevel2",subtype: "listefiche"}
   }
 };

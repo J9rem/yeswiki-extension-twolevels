@@ -11,21 +11,23 @@
 
 namespace YesWiki\Twolevels\Field;
 
-use Psr\Container\ContainerInterface;
-use YesWiki\Bazar\Field\EnumField;
+use YesWiki\Bazar\Field\RadioEntryField;
 use YesWiki\Twolevels\Field\EnumLevel2Commons;
 
 require_once('tools/twolevels/fields/EnumLevel2CommonsField.php');
 
 /**
- * @Field({"enumlevel2"})
+ * @Field({"enumlevel2radiofiche","enumlevel2radiofichetags"})
  */
-class EnumLevel2Field extends EnumField implements EnumLevel2Commons
+class EnumLevel2RadioEntryField extends RadioEntryField implements EnumLevel2Commons
 {
     use EnumLevel2CommonsTrait;
-    protected $displayMethod ;
-    protected $parentFieldName;
-    protected $parentFormId;
-
-    private $internalField;
+    /**
+     * give the internal fieldtype
+     * @return string
+     */
+    public function getInternalFieldType(): string
+    {
+        return 'radiofiche';
+    }
 }
