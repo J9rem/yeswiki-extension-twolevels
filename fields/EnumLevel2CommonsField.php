@@ -13,12 +13,16 @@ namespace YesWiki\Twolevels\Field;
 
 use Psr\Container\ContainerInterface;
 use YesWiki\Bazar\Field\BazarField;
+use YesWiki\Bazar\Field\EnumField;
 use YesWiki\Bazar\Field\CheckboxEntryField;
+use YesWiki\Bazar\Field\CheckboxField;
 use YesWiki\Bazar\Field\CheckboxListField;
 use YesWiki\Bazar\Field\RadioEntryField;
 use YesWiki\Bazar\Field\RadioListField;
 use YesWiki\Bazar\Field\SelectEntryField;
 use YesWiki\Bazar\Field\SelectListField;
+use YesWiki\Bazar\Service\EntryManager;
+use YesWiki\Bazar\Service\FormManager;
 
 interface EnumLevel2Commons
 {
@@ -80,10 +84,101 @@ trait EnumLevel2CommonsTrait
     }
 
     // Format input values before save
-    public function formatValuesBeforeSave($entry)
+    public function formatValuesBeforeSaveIfEditable($entry, bool $isCreation = false)
     {
-        // TODO filter on authorized values according to level 1
-        return parent::formatValuesBeforeSave($entry);
+        // filter on authorized values according to parent level values
+        $parentField = $this->getParentField($entry);
+        if (!empty($parentField)) {
+            $values = $this->getFieldValues($this, $entry);
+            $parentValues = $this->getFieldValues($parentField, $entry);
+            $childFields = $this->getChildrenFields($parentField, $this->getLinkedObjectName());
+            $availableValues = $this->getAvailableChildrenValues($parentValues, $childFields);
+            $values = array_filter($values, function ($value) use ($availableValues) {
+                return in_array($value, $availableValues);
+            });
+            $previousEntry = $entry;
+            if ($this instanceof CheckboxField) {
+                $entry[$this->getPropertyName()] = empty($values) ? [] : array_combine($values, array_fill(0, count($values), "1"));
+            } else {
+                $entry[$this->getPropertyName()] = (empty($values) || empty($values[0])) ? "" : $values[0];
+            }
+        } else {
+            // unset value if parent not found
+            $entry[$this->getPropertyName()] = "";
+        }
+        return parent::formatValuesBeforeSaveIfEditable($entry, $isCreation);
+    }
+
+    protected function getParentField($entry): ?EnumField
+    {
+        $parentFieldName = $this->getParentFieldName();
+        if (empty($parentFieldName)) {
+            return null;
+        }
+        $formId = $this->formatFormId($entry['id_typeannonce'] ?? '');
+        $formManager = $this->getService(FormManager::class);
+        return empty($formId) ? null : $formManager->findFieldFromNameOrPropertyName($parentFieldName, $formId);
+    }
+
+    protected function formatFormId($formId): string
+    {
+        if (empty($formId) || !is_scalar($formId) || (strval($formId) != strval(intval($formId)))) {
+            return "";
+        }
+        $formManager = $this->getService(FormManager::class);
+        $form = $formManager->getOne($formId);
+        return empty($form) ? "" : strval($formId);
+    }
+
+    protected function getFieldValues(EnumField $field, $entry): array
+    {
+        if ($field instanceof CheckboxField) {
+            $values = $field->getValues($entry);
+        } else {
+            $value = $field->getValue($entry);
+            $value = is_scalar($value) ? strval($value) : "";
+            $values = ($value == "") ? [] : [$value];
+        }
+        return $values;
+    }
+
+    protected function getChildrenFields(EnumField $parentField, string $linkedObjectName): array
+    {
+        $parentFormId = $this->formatFormId($parentField->getLinkedObjectName());
+        $fields = [];
+        if (!empty($parentFormId)) {
+            $formManager = $this->getService(FormManager::class);
+            $form = $formManager->getOne($parentFormId);
+            foreach ($form['prepared'] as $field) {
+                if ($field instanceof EnumField && $field->getLinkedObjectName() == $linkedObjectName && $field->getPropertyName() !== "") {
+                    $fields[] = $field;
+                }
+            }
+        }
+        return $fields;
+    }
+
+    protected function getAvailableChildrenValues(array $parentValues, array $childFields): array
+    {
+        $entryManager = $this->getService(EntryManager::class);
+        $availableValues = [];
+        foreach ($parentValues as $entryId) {
+            if (!empty($entryId)) {
+                $entry = $entryManager->getOne($entryId);
+                if (!empty($entry)) {
+                    foreach ($childFields as $field) {
+                        $childValue = $entry[$field->getPropertyName()] ?? "";
+                        $newValues = empty($childValue) ? [] : array_filter(explode(',', $childValue));
+                        foreach ($newValues as $value) {
+                            if (!in_array($value, $availableValues)) {
+                                $availableValues[] = $value;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return $availableValues;
     }
 
     public function getdisplayMethod()
