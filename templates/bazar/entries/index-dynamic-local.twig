@@ -1,0 +1,59 @@
+{# # This file is part of the YesWiki Extension twolevels.
+# Authors : see README.md file that was distributed with this source code.
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code. 
+# modification of https://github.com/YesWiki/yeswiki/blob/doryphore-dev/tools/bazar/templates/entries/index-dynamic.twig
+#}
+
+{{ include_javascript('javascripts/vendor/vue/vue.js') }}
+{{ include_javascript('tools/twolevels/javascripts/bazar/define-common.js') }}
+
+{% block assets %}{% endblock %}
+
+{{ include_javascript('tools/bazar/presentation/javascripts/bazar-list-dynamic.js', false, true) }}
+{{ include_css('tools/bazar/presentation/styles/bazar-list-dynamic.css') }}
+
+{# Extra Fields to retrieve from API call. By default we retrieve the one specified in the displayfields config #}
+{% if necessary_fields is defined %}
+  {% set necessary_fields = necessary_fields|merge(['url']) %}
+{% else %}
+  {% set necessary_fields = ['url'] %}
+{% endif %}
+{% set params = params|merge({necessary_fields: necessary_fields}) %}
+
+<div class="bazar-list-dynamic-container no-dblclick" data-params="{{ params|json_encode }}" 
+     style="opacity: 0" :class="{mounted: mounted}">
+
+  {% if params.search and not params.groups %}
+    {{ include("@bazar/entries/index-dynamic/_search_input.twig") }}
+  {% endif %}
+  
+  {% set resultsColSize = params.filtercolsize|number_format == 12 ? 12 : 12 - params.filtercolsize|number_format %}
+  {% set resultsColSize = params.groups ? resultsColSize : 12 %}
+
+  <div class="facette-container dynamic row {{ resultsColSize == 12 ? 'facette-container-fullwidth' : ''}}" data-filter-align="{{ params.groups ? params.filterposition : '' }}">
+    
+    {% if params.groups and params.filterposition == "left" and resultsColSize == 12 %}
+      {{ include("@bazar/entries/index-dynamic/_filters.twig") }}
+    {% endif %}
+
+    <div class="results-col col-sm-{{ resultsColSize }}">
+      <div class="bazar-list dynamic">
+        {% block display_entries %}
+        {% endblock %}      
+      </div>      
+      {{ include("@bazar/entries/index-dynamic/_pagination.twig") }}
+    </div>
+
+    {% if params.groups and not (params.filterposition == "left" and resultsColSize == 12) %}
+      {{ include("@bazar/entries/index-dynamic/_filters.twig") }}
+    {% endif %}
+    
+  </div>
+
+  {% if not params.isInIframe and params.showexportbuttons %}
+    {{ include("@bazar/entries/index/_export_buttons.twig") }}
+  {% endif %}
+
+  <modal-entry ref="modal"></modal-entry>
+</div>
