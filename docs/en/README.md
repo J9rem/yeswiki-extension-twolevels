@@ -45,3 +45,10 @@ This extension creates two levels lists in bazar.
 When editing a list in the wanted form, a change of the value of the high level's field (checkbox, radio button, list), triggers the update of the low level's list according to the selected values for the high level.
 
 Te filter system `facettes` also works.
+
+**Tip** : In yeswiki action editor via `components` button, iit is possible to select the behaviour of filters in a group of filter between `or` (default) and `and`
+
+To select this:
+ - modify action `bazarliste`
+ - check advanced parameters
+ - search the parameter below `facettes` (filters)

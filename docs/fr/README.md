@@ -45,3 +45,10 @@ Cette extension crée des listes à deux niveaux.
 Lors de la saisie d'une fiche dans le formulaire cible, une modification de la valeur du champ de haut niveau (cases à cocher, bouton radio, liste), va produire la mise à jour du niveau bas en fonction des valeurs sélectionnées pour le niveau haut.
 
 Le système de filtre par `facettes` fonctionne aussi.
+
+**Astuce** : dans l'éditeur d'action yeswiki via le bouton `composants`, il est maintenant possible de choisir le comportement des filtres au sein du même facette entre `ou` (comportement par défaut) et `et`.
+
+Pour faire le réglage:
+ - modifier une action `bazarliste`
+ - cocher les paramètres avancés
+ - rechercher le réglage juste en dessous des `facettes`
