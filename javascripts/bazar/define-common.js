@@ -8,7 +8,39 @@
  */
 
 if (Vue) {
+    if (!Vue.prototype.twolevelswatcheractivated){
+        Vue.prototype.twolevelswatcheractivated = false;
+        Vue.prototype.twolevelstriggerwatcher = true;
+    }
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
+        if (root.params.intrafiltersmode === "and"){
+            if (!Vue.prototype.twolevelswatcheractivated){
+                Vue.prototype.twolevelswatcheractivated = true;
+                let updateFilteredEntries = function (root){
+                    if (Vue.prototype.twolevelstriggerwatcher){
+                        Vue.prototype.twolevelstriggerwatcher = false;
+                        let result = root.searchedEntries
+                        for(const filterId in root.computedFilters) {
+                            result = result.filter(entry => {
+                                if (!entry[filterId] || typeof entry[filterId] != "string") return false
+                                return entry[filterId].split(',').every(value => {
+                                    return root.computedFilters[filterId].includes(value)
+                                }) && root.computedFilters[filterId].length == entry[filterId].split(',').length
+                            })
+                        }
+                        root.filteredEntries = result
+                        root.paginateEntries();
+                    }
+                    root.$nextTick(()=>{
+                        Vue.prototype.twolevelstriggerwatcher = true;
+                    })
+                };
+                // set watcher
+                root.$watch('filteredEntries',()=>{
+                    updateFilteredEntries(root);
+                });
+            }
+        }
         let modeThanOneCheckedFiltersName = [];
         for(let fieldName in root.filters) {
             for (let option of root.filters[fieldName].list) {
