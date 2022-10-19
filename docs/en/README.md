@@ -19,7 +19,7 @@ This extension creates two levels lists in bazar.
     - keep the list's name or the forms number jsut created
   2. create the high level :
     - create a new form called the _parent_ form
-    - in this form, with field `bf_titre`, add a field of type `EnumField`:
+    - in this form, with field `bf_titre`, add a field of type `checkbox`, `radio`, `liste`, `checkboxfiche`, `radiofiche` or `listefiche`:
        - if the low level is a **list**, choose between `checkbox`, `radio` (radio button) or `liste` (select), then select the list corresponding to the low level
        - if the low level is a **form**, choose between `checkboxfiche` (checkboxr), `radiofiche` (radio button) or `listefiche` (select), then select the form corresponding to the low level
     - it is possible to choose the wanted display method for the association betwenne the two levels (`normal`, `by tags` or `drag and drop`)

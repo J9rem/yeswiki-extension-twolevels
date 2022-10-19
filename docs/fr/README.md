@@ -19,7 +19,7 @@ Cette extension crée des listes à deux niveaux.
     - noter le nom de la liste ou le numéro du formulaire ainsi créé
   2. créer le niveau le plus haut :
     - créer un nouveau formulaire dit formulaire _parent_
-    - dans ce formulaire, en plus du champ `bf_titre`, ajouter un champ de type `EnumField`:
+    - dans ce formulaire, en plus du champ `bf_titre`, ajouter un champ de type `checkbox`, `radio`, `liste`, `checkboxfiche`, `radiofiche` ou `listefiche` :
        - si le niveau le plus bas est une **liste**, choisir parmis `checkbox` (case à cocher), `radio` (bouton radio) ou `liste` (sélection), puis sélectionner la liste correspond au niveau le plus bas
        - si le niveau le plus bas est un **formulaire**, choisir parmis `checkboxfiche` (case à cocher), `radiofiche` (bouton radio) ou `listefiche` (sélection), puis sélectionner le formulaire correspond au niveau le plus bas
     - il est possible de choisir la méthode d'affichage désirée pour l'association entre les deux niveaux (`normal`, `par tags` ou `drag and drop`)
