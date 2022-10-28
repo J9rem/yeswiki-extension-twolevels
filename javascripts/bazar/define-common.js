@@ -12,21 +12,37 @@ if (Vue) {
         Vue.prototype.twolevelswatcheractivated = false;
         Vue.prototype.twolevelstriggerwatcher = true;
     }
+    Vue.prototype.nbEntries = function(filteredEntries,root){
+        return filteredEntries 
+        ? (
+            root.params.template === "map"
+            ? filteredEntries.filter(e => e.bf_latitude && e.bf_longitude).length
+            : filteredEntries.length
+        ) 
+        : 0;
+    }
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
-        if (root.params.intrafiltersmode === "and"){
+        if (root.params.intrafiltersmode === "and" || root.params.template === "map"){
             if (!Vue.prototype.twolevelswatcheractivated){
                 Vue.prototype.twolevelswatcheractivated = true;
                 let updateFilteredEntries = function (root){
                     if (Vue.prototype.twolevelstriggerwatcher){
                         Vue.prototype.twolevelstriggerwatcher = false;
                         let result = root.searchedEntries
-                        for(const filterId in root.computedFilters) {
-                            result = result.filter(entry => {
-                                if (!entry[filterId] || typeof entry[filterId] != "string") return false
-                                return entry[filterId].split(',').every(value => {
-                                    return root.computedFilters[filterId].includes(value)
-                                }) && root.computedFilters[filterId].length == entry[filterId].split(',').length
-                            })
+                        if (root.params.intrafiltersmode === "and"){
+                            if (root.params.template === "map"){
+                                result = result.filter(entry => entry.bf_latitude && entry.bf_longitude)
+                            }
+                            for(const filterId in root.computedFilters) {
+                                result = result.filter(entry => {
+                                    if (!entry[filterId] || typeof entry[filterId] != "string") return false
+                                    return entry[filterId].split(',').every(value => {
+                                        return root.computedFilters[filterId].includes(value)
+                                    }) && root.computedFilters[filterId].length == entry[filterId].split(',').length
+                                })
+                            }
+                        } else {
+                            result = root.filteredEntries.filter(entry => entry.bf_latitude && entry.bf_longitude)
                         }
                         root.filteredEntries = result
                         root.paginateEntries();
@@ -53,6 +69,9 @@ if (Vue) {
         }
         for(let fieldName in root.filters) {
             let availableEntriesForThisFilter = root.searchedEntries;
+            if (root.params.template === "map"){
+                availableEntriesForThisFilter = availableEntriesForThisFilter.filter(entry => entry.bf_latitude && entry.bf_longitude)
+            }
             if (modeThanOneCheckedFiltersName.includes(fieldName)){
                 modeThanOneCheckedFiltersName
                     .filter(fName=>fName!=fieldName)
@@ -70,7 +89,9 @@ if (Vue) {
                         });
                 });
             } else {
-                availableEntriesForThisFilter = root.filteredEntries
+                availableEntriesForThisFilter = (root.params.template === "map")
+                    ? root.filteredEntries.filter(entry => entry.bf_latitude && entry.bf_longitude)
+                    : root.filteredEntries
             }
             for (let option of root.filters[fieldName].list) {
                 option.nb = availableEntriesForThisFilter.filter(entry => {

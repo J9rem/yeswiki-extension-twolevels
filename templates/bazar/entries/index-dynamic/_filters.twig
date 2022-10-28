@@ -13,9 +13,9 @@
   <div class="filters no-dblclick {{ params.filterposition }}" v-if="Object.keys(filters).length">
     <div class="results-info text-info">
       <template v-if="params.filtersresultnb">
-        <span class="nb-results">{{"{{ filteredEntriesCount }}"}}</span>
+        <span class="nb-results" v-html="nbEntries(filteredEntries,$root)"></span>
         <span class="result-label">
-          <template v-if="entriesToDisplay.length > 1">{{ _t('BAZ_FICHES_CORRESPONDANTES_FILTRES') }}</template>
+          <template v-if="nbEntries(filteredEntries,$root) > 1">{{ _t('BAZ_FICHES_CORRESPONDANTES_FILTRES') }}</template>
           <template v-else>{{ _t('BAZ_FICHE_CORRESPONDANT_FILTRES') }}</template>
         </span>
       </template>
