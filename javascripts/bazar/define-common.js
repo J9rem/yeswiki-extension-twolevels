@@ -12,27 +12,14 @@ if (Vue) {
         Vue.prototype.twolevelswatcheractivated = false;
         Vue.prototype.twolevelstriggerwatcher = true;
     }
-    Vue.prototype.nbEntries = function(filteredEntries,root){
-        return filteredEntries 
-        ? (
-            root.params.template === "map"
-            ? filteredEntries.filter(e => e.bf_latitude && e.bf_longitude).length
-            : filteredEntries.length
-        ) 
-        : 0;
-    }
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
-        if (root.params.intrafiltersmode === "and" || root.params.template === "map"){
+        if (root.params.intrafiltersmode === "and"){
             if (!Vue.prototype.twolevelswatcheractivated){
                 Vue.prototype.twolevelswatcheractivated = true;
                 let updateFilteredEntries = function (root){
                     if (Vue.prototype.twolevelstriggerwatcher){
                         Vue.prototype.twolevelstriggerwatcher = false;
                         let result = root.searchedEntries
-                        if (root.params.intrafiltersmode === "and"){
-                            if (root.params.template === "map"){
-                                result = result.filter(entry => entry.bf_latitude && entry.bf_longitude)
-                            }
                             for(const filterId in root.computedFilters) {
                                 result = result.filter(entry => {
                                     if (!entry[filterId] || typeof entry[filterId] != "string") return false
@@ -40,9 +27,6 @@ if (Vue) {
                                         return root.computedFilters[filterId].includes(value)
                                     }) && root.computedFilters[filterId].length == entry[filterId].split(',').length
                                 })
-                            }
-                        } else {
-                            result = root.filteredEntries.filter(entry => entry.bf_latitude && entry.bf_longitude)
                         }
                         root.filteredEntries = result
                         root.paginateEntries();
