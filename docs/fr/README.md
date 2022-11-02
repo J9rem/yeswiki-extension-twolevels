@@ -35,9 +35,9 @@ Cette extension crée des listes à deux niveaux.
  3. choisir un nom pour ce champ (par exemple, `bf_listehaut` et le noter)
  4. ajouter un champ `enumlevel2` (liste à 2 niveaux)
       - donner le nom du champ de haut niveau (champ parent), (dans notre exemple `bf_listehaut`)
-      - pour accélérer l'affichage des données, choisir aussi le formulaire associé au niveau haut
       - choisir le type d'affichage souhaité pour ce niveau en faisant attention à choisir un affichage de type liste si le niveau bas est une liste (sinon choisir un affichage de type formulaire)
       - le reste des paramètres du champ sont ceux des champs `checkboxfiche`, `radiofiche` ou `listefiche`
+      - comme par exemple choisir la liste associée au niveau bas (ou le formulaire si le niveau bas est un formulaire)
  5. sauvegarder le formulaire
 
 ## Utilisation

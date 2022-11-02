@@ -34,10 +34,10 @@ This extension creates two levels lists in bazar.
  2. select the form of high level for this field
  3. give a name to the field (for example, `bf_highlist` and keep it)
  4. add a field `enumlevel2` (2 levels list)
-      - type the name of the high level field (parent field), (ni the example `bf_highlist`)
-      - to speed up the display of data, select also the associated form
+      - type the name of the high level field (parent field), (in the example `bf_highlist`)
       - select the wanted display method for this field paying attention that a display of list should be selected if the low level is a list (otherwise select a display of a form) 
       - the other parameters are the ones of `checkboxfiche`, `radiofiche` or `listefiche` fields
+      - by example, select associated list to low level (or form is low level is a form)
  5. save the form
 
 ## Usage
