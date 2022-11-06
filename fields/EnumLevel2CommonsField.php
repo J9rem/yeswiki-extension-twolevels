@@ -48,6 +48,7 @@ class EnumLevel2CommonsField
 
 trait EnumLevel2CommonsTrait
 {
+    protected $associatingFormId;
     protected $displayMethod ;
     protected $parentFieldName;
 
@@ -55,10 +56,13 @@ trait EnumLevel2CommonsTrait
     {
         // set local properties
         $this->displayMethod = $values[EnumLevel2CommonsField::FIELD_DISPLAY_METHOD];
-        $this->parentFieldName = trim((
+        $explodedParam = explode('|',trim((
             !empty($values[EnumLevel2CommonsField::FIELD_FIELDNAME]) &&
             is_string($values[EnumLevel2CommonsField::FIELD_FIELDNAME])
-        ) ? $values[EnumLevel2CommonsField::FIELD_FIELDNAME] : '');
+        ) ? $values[EnumLevel2CommonsField::FIELD_FIELDNAME] : ''));
+        $this->parentFieldName = $explodedParam[0] ?? '';
+        $this->associatingFormId = $explodedParam[1] ?? '';
+        $this->associatingFormId = (empty($this->associatingFormId) || intval($this->associatingFormId) < 1) ? '' : strval(intval($this->associatingFormId));
 
         // remove values which must not be passed to parent constructor
         $internalValues = $values;
@@ -189,6 +193,10 @@ trait EnumLevel2CommonsTrait
     {
         return $this->parentFieldName;
     }
+    public function getAssociatingFormId()
+    {
+        return $this->associatingFormId;
+    }
     // ====
 
     #[\ReturnTypeWillChange]
@@ -197,6 +205,7 @@ trait EnumLevel2CommonsTrait
         $data = parent::jsonSerialize();
         $data['displayMethod'] = $this->getdisplayMethod();
         $data['parentFieldName'] = $this->getParentFieldName();
+        $data['associatingFormId'] = $this->getAssociatingFormId();
         return $data;
     }
 }

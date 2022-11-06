@@ -26,4 +26,6 @@ return [
     'TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE' => 'Formulaire - sélection par liste',
     'TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL' => 'Champ parent',
     'TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT' => 'Nom du champ dans ce formulaire',
+    'TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL' => 'Formulaire d\'association',
+    'TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_HINT' => 'uniquement si le niveau haut est une liste',
 ];

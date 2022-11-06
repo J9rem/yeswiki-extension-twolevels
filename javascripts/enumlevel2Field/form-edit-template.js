@@ -67,6 +67,10 @@ typeUserAttrs = {
             "radiofichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHETAGS'),
             "checkboxfichedragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHEDRAGNDROP'),
           },
+        },
+        associatingForm: {
+          label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL'),
+          options: {...{"":""},...formAndListIds.forms},
         }
       },
       ...selectConfWithoutSubtype2,
@@ -100,6 +104,7 @@ templates = {
         onRender: function(){
           initEnum2Level();
           templateHelper.defineLabelHintForGroup(field,'parentFieldName',_t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT'));
+          templateHelper.defineLabelHintForGroup(field,'associatingForm',_t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_HINT'));
         },
       };
     },
@@ -143,3 +148,124 @@ yesWikiTypes = {
     enumlevel2listefiche: {type: "enumlevel2",subtype: "listefiche"}
   }
 };
+
+
+// transform a json object like "{ type: 'texte', name: 'bf_titre', label: 'Nom' .... }"
+// into wiki text like "texte***bf_titre***Nom***255***255*** *** *** ***1***0***"
+if (typeof formatJsonDataIntoWikiText == "undefined"){
+  var formatJsonDataIntoWikiText = null;
+}
+formatJsonDataIntoWikiText = function(formData) {
+  if (formData.length == 0) return null;
+  var wikiText = "";
+
+  for (var i = 0; i < formData.length; i++) {
+    var wikiProps = {};
+    var formElement = formData[i];
+    var mapping = yesWikiMapping[formElement.type];
+
+    for (var type in yesWikiTypes)
+      if (
+        formElement.type == yesWikiTypes[type].type &&
+        (!formElement.subtype ||
+          !yesWikiTypes[type].subtype ||
+          formElement.subtype == yesWikiTypes[type].subtype) &&
+        (!formElement.subtype2 ||
+          formElement.subtype2 == yesWikiTypes[type].subtype2)
+      ) {
+        wikiProps[0] = type;
+        break;
+      }
+    // for non mapped fields, we just keep the form type
+    if (!wikiProps[0]) wikiProps[0] = formElement.type;
+    
+    // fix for url field which can be build with textField or urlField
+    if (wikiProps[0]) wikiProps[0] = wikiProps[0].replace('_bis', '') 
+
+    for (var key in mapping) {
+      var property = mapping[key];
+      if (property != "type") {
+        var value = formElement[property];
+        if (["required", "access"].indexOf(property) > -1)
+          value = value ? "1" : "0";
+        if (property == "label"){
+          wikiProps[key] = removeBR(value).replace(/\n$/gm,"");
+        } else {
+          wikiProps[key] = value ;
+        }
+      }
+    }
+    // === customized part ====
+    if (formElement.type == "enumlevel2") {
+      wikiProps["3"] = `${formElement.parentFieldName || ''}|${formElement.associatingForm || ''}`;
+    }
+    // === end of customized part ====
+
+    maxProp = Math.max.apply(Math, Object.keys(wikiProps));
+    for (var j = 0; j <= maxProp; j++) {
+      wikiText += wikiProps[j] || " ";
+      wikiText += "***";
+    }
+    wikiText += "\n";
+  }
+  return wikiText;
+}
+
+// transform text with wiki text like "texte***bf_titre***Nom***255***255*** *** *** ***1***0***"
+// into a json object "{ type: 'texte', name: 'bf_titre', label: 'Nom' .... }"
+if (typeof parseWikiTextIntoJsonData == "undefined"){
+  var parseWikiTextIntoJsonData = null;
+}
+parseWikiTextIntoJsonData= function(text) {
+  var result = [];
+  var text = text.trim();
+  var textFields = text.split("\n");
+  for (var i = 0; i < textFields.length; i++) {
+    var textField = textFields[i];
+    var fieldValues = textField.split("***");
+    var fieldObject = {};
+    if (fieldValues.length > 1) {
+      var wikiType = fieldValues[0];
+      var fieldType =
+        wikiType in yesWikiTypes ? yesWikiTypes[wikiType].type : wikiType;
+      // check that the fieldType really exists in our form builder
+      if (!(fieldType in yesWikiMapping)) fieldType = "custom";
+
+      var mapping = yesWikiMapping[fieldType];
+
+      fieldObject["type"] = fieldType;
+      fieldObject["subtype"] =
+        wikiType in yesWikiTypes ? yesWikiTypes[wikiType].subtype : "";
+      fieldObject["subtype2"] =
+        wikiType in yesWikiTypes ? yesWikiTypes[wikiType].subtype2 : "";
+      var start = fieldType == "custom" ? 0 : 1;
+      for (var j = start; j < fieldValues.length; j++) {
+        var value = fieldValues[j];
+        var field = mapping && j in mapping ? mapping[j] : j;
+        if (field == "required") value = value == "1" ? true : false;
+        if (field){
+          if (field == "read" || field == "write" || field == "comment"){
+            fieldObject[field] = (value.trim() === "") ? [" * "] : value.split(',');
+          } else {
+            fieldObject[field] = value;
+          }
+        }
+      }
+      if (!fieldObject.label) {
+        fieldObject.label = wikiType;
+        for (var k = 0; k < fields.length; k++)
+          if (fields[k].name == wikiType) fieldObject.label = fields[k].label;
+      }
+      
+      // === customized part ====
+      if (wikiType.slice(0,"enumlevel2".length) == "enumlevel2") {
+        let options = (fieldValues[3] || '').split('|');
+        fieldObject.parentFieldName = options[0] || '';
+        fieldObject.associatingForm = options[1] || '';
+      }
+      // === end of customized part ====
+      result.push(fieldObject);
+    }
+  }
+  return result;
+}

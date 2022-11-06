@@ -26,4 +26,6 @@ return [
     'TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE' => 'Form - select by list',
     'TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL' => 'Parent field',
     'TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT' => 'Field name in this form',
+    'TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL' => 'Associating form',
+    'TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_HINT' => 'only if high level is a list',
 ];
