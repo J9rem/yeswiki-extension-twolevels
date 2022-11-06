@@ -10,44 +10,134 @@
 const enumlevel2Helper = {
     data: function(){
         return {
+            allEntriesCache: {},
+            correspondances: {},
             levels2: {},
             entries: {},
+            eventsListeners: {},
             parents: {},
             forms: {},
-            formsLoadedFunctions: []
+            loadingAllEntries: [],
+            loadingEntries: [],
+            loadingForms: [],
         };
     },
     methods: {
-        importElement: function(element){
-            let propertyName = element.dataset.fieldPropertyname || '';
-            let parentFieldName = element.dataset.fieldParentFieldname || '';
-            let fieldName = element.dataset.fieldName || '';
-            if (propertyName.length > 0 && parentFieldName.length > 0){
-                this.levels2[propertyName] = {parentFieldName,fieldName};
-                let field = this.findField(propertyName);
-                if (field && typeof field == "object"){
-                    this.levels2[propertyName].type = field.type;
-                    this.levels2[propertyName].node = field.hasOwnProperty('node') ? field.node : null ;
-                    this.levels2[propertyName].nodes = field.hasOwnProperty('nodes') ? field.nodes : null ;
-                    this.levels2[propertyName].linkedObjectId = field.linkedObjectId ;
-                    if (this.parents.hasOwnProperty(parentFieldName)){
-                        this.levels2[propertyName].parentId = parentFieldName;
-                        this.parents[parentFieldName].childrenIds.push(propertyName);
-                    } else {
-                        field = this.findField(parentFieldName);
-                        if (field && typeof field == "object"){
-                            this.parents[parentFieldName] = {
-                                type: field.type,
-                                node: field.hasOwnProperty('node') ? field.node : null,
-                                nodes: field.hasOwnProperty('nodes') ? field.nodes : null,
-                                linkedObjectId: field.linkedObjectId,
-                                childrenIds: [propertyName]
-                            }
-                            this.levels2[propertyName].parentId = parentFieldName
+        addEvent: function(eventName, listener, once = false){
+            if (typeof eventName == "string"){
+                if (!(eventName in this.eventsListeners)){
+                    this.eventsListeners[eventName] = [];
+                }
+                this.eventsListeners[eventName] = [
+                    ...this.eventsListeners[eventName],
+                    ...[{listener, once, triggered: false}]
+                ];
+            }
+        },
+        addEventOnce: function(eventName, listener){
+            this.addEvent(eventName,listener,true);
+        },
+        appendChildrenFieldsPropertyNamestoParentForm: function(form,parentField){
+            if (!('childrenFieldsPropertyNames' in form)){
+                form.childrenFieldsPropertyNames = {};
+                parentField.childrenIds.forEach((childId)=>{
+                    if (!(childId in form.childrenFieldsPropertyNames)){
+                        form.childrenFieldsPropertyNames[childId] = {};
+                        let childLinkedObjectId= this.levels2[childId].linkedObjectId;
+                        if (childLinkedObjectId.length > 0){
+                            let prepared = (Array.isArray(form.prepared))
+                                ? form.prepared
+                                : (
+                                    typeof form.prepared == "object"
+                                    ? Object.values(form.prepared)
+                                    : []
+                                );
+        
+                            prepared.forEach((field)=> {
+                                if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
+                                    .includes(field.type) && field.linkedObjectName == childLinkedObjectId){
+                                    form.childrenFieldsPropertyNames[childId][field.propertyname] = field
+                                }
+                            });
                         }
                     }
+                });
+            }
+            return form;
+        },
+        appendParentsFieldsPropertyNamestoParentForm: function(form,fieldName,parentField){
+            if (!('parentsFieldsPropertyNames' in form)){
+                form.parentsFieldsPropertyNames = {};
+
+                if (fieldName && fieldName.length > 0 && 
+                    !(fieldName in form.parentsFieldsPropertyNames)){
+                    form.parentsFieldsPropertyNames[fieldName] = {};
+                    let prepared = (Array.isArray(form.prepared))
+                        ? form.prepared
+                        : (
+                            typeof form.prepared == "object"
+                            ? Object.values(form.prepared)
+                            : []
+                        );
+                    prepared.forEach((field)=> {
+                        if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
+                            .includes(field.type) && field.linkedObjectName == parentField.linkedObjectId){
+                            form.parentsFieldsPropertyNames[fieldName][field.propertyname] = field
+                        }
+                    });
                 }
             }
+            return form;
+        },
+        appendToArrayIfInEntry: function (entry,propName,currentArray){
+            if (propName in entry && 
+                    typeof entry[propName] == "string" && 
+                    entry[propName].length > 0){ 
+                entry[propName].split(',').forEach((value)=>{
+                    if (!currentArray.includes(value)){
+                        currentArray.push(value);
+                    }
+                })
+            }
+            return currentArray;
+        },
+        assertIsRegularFormId: function (formId){
+            if (typeof formId != "string" || formId.length == 0 || Number(formId) < 1){
+                throw `'formId' as parameter as 'getForm' should be a not empty string representing a postive integer`;
+            }
+        },
+        assertIsRegularEntryId: function (entryId){
+            if (typeof entryId != "string" || entryId.length == 0 || String(Number(entryId)) === entryId){
+                throw `'entryId' as parameter as 'assertIsRegularEntryId' should be a not empty string and not representing a form number`;
+            }
+        },
+        cleanEvent: function (eventName){
+            this.eventsListeners[eventName] = this.eventsListeners[eventName].filter((eventData)=>{
+                return !eventData.once || !eventData.triggered;
+            })
+        },
+        dispatchEvent: function (eventName, param = undefined){
+            if (typeof eventName == "string"){
+                if (eventName in this.eventsListeners){
+                    this.eventsListeners[eventName].forEach((eventData,idx)=>{
+                        if (!eventData.once || !eventData.triggered){
+                            this.eventsListeners[eventName][idx].triggered = true;
+                            if (param != undefined){
+                                eventData.listener(param);
+                            } else {
+                                eventData.listener();
+                            }
+                        }
+                    })
+                    this.cleanEvent(eventName);
+                }
+            }
+        },
+        extractInputCheckboxValue: function(node){
+            let name = node.getAttribute('name');
+            let match = name.match(/\[[A-Za-z0-9_\-]+\]$/);
+            if (!match) return ""
+            return match[0].slice(1,-1);
         },
         extractLinkedObjectIdForCheckox: function (node, mode = "group-checkbox-", type = "checkbox"){
             let linkedObjectId = "";
@@ -60,7 +150,7 @@ const enumlevel2Helper = {
             });
             if (fieldPropertyName.length > 0){
                 let fieldName = "[A-Za-z0-9_\\-]*";
-                if (this.levels2.hasOwnProperty(fieldPropertyName) 
+                if (fieldPropertyName in this.levels2
                     && this.levels2[fieldPropertyName].fieldName.length > 0){
                     fieldName = this.levels2[fieldPropertyName].fieldName
                 }
@@ -71,6 +161,38 @@ const enumlevel2Helper = {
                 }
             }
             return linkedObjectId;
+        },
+        extractLinkedObjectIdForRadioOrListe: function (name, type){
+            let linkedObjectId = "";
+            if (name.length > 0){
+                let fieldName = "[A-Za-z0-9_\\-]*";
+                if (name in this.levels2 
+                    && this.levels2[name].fieldName.length > 0){
+                    fieldName = this.levels2[name].fieldName
+                }
+                let match = name.match(new RegExp(`^(?:${type}fiche([0-9]*)|${type}(Liste[A-Za-z0-9\-_]+))${fieldName}$`))
+                if (match && ((match[1] && match[1].length > 0) || (match[2] && match[2].length > 0))){
+                    linkedObjectId = match[1] ?? match[2];
+                }
+            }
+            return linkedObjectId;
+        },
+        extractListOfAssociatingForms: function (fieldName,parentField){
+            if (typeof fieldName != "string" || fieldName.length == 0){
+                throw `'fiedlName' param in function 'extractListOfAssociatingForms' should be a not empty string, got '${JSON.stringify(fieldName)}'`;
+            }
+            if (!('listOfAssociatingForms' in parentField)){
+                let formsIds = [];
+                parentField.childrenIds.forEach((id)=>{
+                    let associatingFormId = this.levels2[id].associatingFormId;
+                    if (associatingFormId.length > 0){
+                        formsIds.push(associatingFormId)
+                    }
+                });
+                
+                this.parents[fieldName].listOfAssociatingForms = formsIds;
+            }
+            return this.parents[fieldName].listOfAssociatingForms;
         },
         findCheckbox: function(fieldName){
             let elements = document.querySelectorAll(`ul[class*="group-checkbox-"][class*="${fieldName}"],div[class*="group-checkbox-"][class*="${fieldName}"]`);
@@ -142,21 +264,18 @@ const enumlevel2Helper = {
                     node: elements[0],
                     linkedObjectId: linkedObjectId
                 };
-        },
-        extractLinkedObjectIdForRadioOrListe: function (name, type){
-            let linkedObjectId = "";
-            if (name.length > 0){
-                let fieldName = "[A-Za-z0-9_\\-]*";
-                if (this.levels2.hasOwnProperty(name) 
-                    && this.levels2[name].fieldName.length > 0){
-                    fieldName = this.levels2[name].fieldName
-                }
-                let match = name.match(new RegExp(`^(?:${type}fiche([0-9]*)|${type}(Liste[A-Za-z0-9\-_]+))${fieldName}$`))
-                if (match && ((match[1] && match[1].length > 0) || (match[2] && match[2].length > 0))){
-                    linkedObjectId = match[1] ?? match[2];
-                }
+        },     
+        findField: function(name,associatingFormId = ""){
+            let field = this.findCheckbox(name) ||
+                this.findCheckboxDragAndDrop(name) ||
+                this.findCheckboxTag(name) ||
+                this.findList(name) ||
+                this.findRadio(name) ||
+                null;
+            if (associatingFormId.length > 0){
+                field.linkedObjectId = field.linkedObjectId.replace(new RegExp(`${name}$`),'');
             }
-            return linkedObjectId;
+            return field;
         },
         findList: function(fieldName){
             let elements = document.querySelectorAll(`select[name$=${fieldName}]`);
@@ -183,14 +302,90 @@ const enumlevel2Helper = {
                     linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"radio")
             };
         },
-        findField: function(name){
-            let field = this.findCheckbox(name) ||
-                this.findCheckboxDragAndDrop(name) ||
-                this.findCheckboxTag(name) ||
-                this.findList(name) ||
-                this.findRadio(name) ||
-                null;
-            return field;
+        getAllEntries: async function (formId){
+            this.assertIsRegularFormId(formId);
+            if (formId in this.allEntriesCache){
+                return this.allEntriesCache[formId];
+            } else {
+                return await this.getData(wiki.url(`?api/forms/${formId}/entries`),formId,'getAllEntries','loadingAllEntries',(responseDecoded)=>{
+                        if (typeof responseDecoded == "object"||
+                            Array.isArray(responseDecoded)){
+                                
+                            let entries = (typeof responseDecoded == "object")
+                                ? Object.values(responseDecoded)
+                                : responseDecoded;
+                            entries = entries.filter((e)=>{
+                                return typeof e.id_fiche === "string" &&
+                                    typeof e.id_typeannonce === "string" &&
+                                    typeof e.bf_titre === "string";
+                            })
+                            entries.forEach((e)=>{
+                                if (!(e.id_fiche in this.entries)){
+                                    this.entries[e.id_fiche] = e;
+                                }
+                            });
+                            this.allEntriesCache[formId] = entries;
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    }).then(()=>{
+                        if (formId in this.allEntriesCache){
+                            return this.allEntriesCache[formId];
+                        } else {
+                            throw `allEntriesCache '${formId}' not found in 'this.allEntriesCache (${JSON.stringify(Object.keys(this.allEntriesCache))})`
+                        }
+                    })
+                    .catch((e)=>{throw `error when getting all Entries for '${formId}'`+(e!=undefined ? ` : ${(e)}`:'')});
+            }
+        },
+        getAvailableSecondLevelsValues: async function(parentForm,parentField,values){
+            parentForm = this.appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField);
+            return await this.getParentEntries(values).then(()=>{
+                let secondLevelValues = {};
+                parentField.childrenIds.forEach((childId)=>{
+                    secondLevelValues[childId] = [];
+                    if (childId in parentForm.childrenFieldsPropertyNames){
+                        values.forEach((parentEntryId)=>{
+                            if (parentEntryId in this.entries){
+                                let parentEntry = this.entries[parentEntryId];
+                                for (let propName in parentForm.childrenFieldsPropertyNames[childId]){
+                                    secondLevelValues[childId] = this.appendToArrayIfInEntry(parentEntry,propName,secondLevelValues[childId]);
+                                }
+                            }
+                        })
+                    }
+                });
+                return [secondLevelValues,parentForm];
+            });
+        },
+        getAvailableSecondLevelsValuesForLists: async function(associatingForm,fieldName,parentField,values){
+            associatingForm = this.appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField);
+            associatingForm = this.appendParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField);
+            let correspondances = await this.getCorrespondances(associatingForm,fieldName,parentField);
+            let secondLevelValues = {};
+            parentField.childrenIds.forEach((childId)=>{
+                secondLevelValues[childId] = [];
+                if (childId in associatingForm.childrenFieldsPropertyNames){
+                    values.forEach((parentValue)=>{
+                        if (parentValue in correspondances && childId in correspondances[parentValue]){
+                            secondLevelValues[childId] = [
+                                    ...secondLevelValues[childId],
+                                    ...correspondances[parentValue][childId]
+                                ];
+                        }
+                    })
+                }
+            });
+            return secondLevelValues;
+        },
+        getCheckboxTagValues: function (node){
+            let values = [];
+            let value = node.value;
+            if (value.trim() != ""){
+                values = value.split(",").map((val)=>String(val));
+            }
+            return values;
         },
         getCheckboxValues: function (nodes){
             let values = [];
@@ -204,13 +399,178 @@ const enumlevel2Helper = {
             });
             return values;
         },
-        getCheckboxTagValues: function (node){
-            let values = [];
-            let value = node.value;
-            if (value.trim() != ""){
-                values = value.split(",").map((val)=>String(val));
+        getCorrespondances: async function(associatingForm,fieldName,parentField){
+            if (associatingForm.bn_id_nature in this.correspondances){
+                return this.correspondances[associatingForm.bn_id_nature];
+            } else {
+                return await this.getAllEntries(associatingForm.bn_id_nature)
+                    .then((entries)=>{
+                        let correspondances = {};
+                        entries.forEach((e)=>{
+                            let tmp = {
+                                parents: [],
+                                children: {}
+                            }
+                            for (const propertyName in associatingForm.parentsFieldsPropertyNames[fieldName]) {
+                                tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents);
+                            }
+                            for (const childId in associatingForm.childrenFieldsPropertyNames) {
+                                tmp.children[childId] = [];
+                                for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
+                                    tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId]);
+                                }
+                            }
+                            tmp.parents.forEach((p)=>{
+                                if (!(p in correspondances)){
+                                    correspondances[p] = {};
+                                }
+                                for (const childId in tmp.children) {
+                                    if (!(childId in correspondances[p])){
+                                        correspondances[p][childId] = [];
+                                    }
+                                    tmp.children[childId].forEach((val)=>{
+                                        if (!correspondances[p][childId].includes(val)){
+                                            correspondances[p][childId] = [...correspondances[p][childId],val];
+                                        }
+                                    });
+                                }
+                                
+                            });
+                        })
+                        this.correspondances[associatingForm.bn_id_nature] = correspondances;
+                        return correspondances;
+                    })
             }
-            return values;
+        },
+        getData: async function(url,id,eventPrefix,loadingCacheName,testFunction){
+            let p = new Promise((resolve,reject)=>{
+                    this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve());
+                    this.addEventOnce(`${eventPrefix}.${id}.error`,(e)=>reject(e));
+                    if (!this[loadingCacheName].includes(id)){
+                        this[loadingCacheName] = [...this[loadingCacheName],id];
+                        let resettingLoadingForms = ()=>{
+                            this[loadingCacheName] = this[loadingCacheName].filter((idToCheck)=>idToCheck!=id)
+                        };
+                        this.addEventOnce(`${eventPrefix}.${id}.error`,resettingLoadingForms);
+                        this.addEventOnce(`${eventPrefix}.${id}.ready`,resettingLoadingForms);
+                        this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>{
+                            this.setEventTriggered(`${eventPrefix}.${id}.error`);
+                        });
+                        fetch(url)
+                           .then((response)=>{
+                                if (!response.ok){
+                                    this.dispatchEvent(`${eventPrefix}.${id}.error`,`response not ok when fetching ${url}`);
+                                } else {
+                                    response.json()
+                                        .then((responseDecoded)=>{
+                                            if (typeof testFunction == "function" && testFunction(responseDecoded)){
+                                                this.dispatchEvent(`${eventPrefix}.${id}.ready`)
+                                            } else {
+                                                this.dispatchEvent(`${eventPrefix}.${id}.error`,'response badly formatted')
+                                            }
+                                        })
+                                        .catch((e)=>{this.dispatchEvent(`${eventPrefix}.${id}.error`,e)})
+                                }
+                           })
+                           .catch((e)=>{this.dispatchEvent(`${eventPrefix}.${id}.error`,e)})
+                    }
+                });
+            return await p.then((form)=>{return form});
+        },
+        getEntry: async function (entryId){
+            this.assertIsRegularEntryId(entryId);
+            if (entryId in this.entries){
+                return this.entries[entryId];
+            } else {
+                return await this.getData(wiki.url(`?api/entries/json/${entryId}`),entryId,'getEntry','loadingEntries',(responseDecoded)=>{
+                        if (responseDecoded && typeof responseDecoded == "object"){
+                            let firstValue = Object.values(responseDecoded)[0];
+                            if ('id_fiche' in firstValue &&
+                                firstValue.id_fiche == entryId){
+                                this.entries[entryId] = firstValue;
+                                return true;
+                            } else {
+                                return false;
+                            }
+                        } else {
+                            return false;
+                        }
+                    }).then(()=>{
+                        if (entryId in this.entries){
+                            return this.entries[entryId];
+                        } else {
+                            throw `entryId '${entryId}' not found in 'this.entries (${JSON.stringify(Object.keys(this.entries))})`
+                        }
+                    })
+                    .catch((e)=>{throw `error when getting entry '${entryId}'`+(e!=undefined ? ` : ${(e)}`:'')});
+            }
+        },
+        getForm: async function (formId){
+            this.assertIsRegularFormId(formId);
+            if (formId in this.forms){
+                return this.forms[formId];
+            } else {
+                return await this.getData(wiki.url(`?api/forms/${formId}`),formId,'getForm','loadingForms',(responseDecoded)=>{
+                        if (responseDecoded && ('bn_id_nature' in responseDecoded) &&
+                            responseDecoded.bn_id_nature == formId){
+                            this.forms[formId] = responseDecoded;
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    }).then(()=>{
+                        if (formId in this.forms){
+                            return this.forms[formId];
+                        } else {
+                            throw `formId '${formId}' not found in 'this.forms (${JSON.stringify(Object.keys(this.forms))})`
+                        }
+                    })
+                    .catch((e)=>{throw `error when getting form '${formId}'`+(e!=undefined ? ` : ${(e)}`:'')});
+            }
+        },
+        getParentEntries: async function(entriesIds){
+            if (entriesIds.length == 0){
+                return [];
+            }
+            let promises = [];
+            let promisesLabel = [];
+            for (let entryId of entriesIds){
+                promises.push(
+                    new Promise((resolve,reject)=>{
+                        this.getEntry(entryId).then((entry)=>{
+                            resolve(entry);
+                        })
+                        .catch((e)=>{
+                            reject(e);
+                        })
+                    })
+                )
+                promisesLabel.push(`getting entry ${entryId}`)
+            }
+            return await Promise.allSettled(promises).then((promisesStatus)=>{
+                promisesStatus.forEach((p,idx)=>{
+                    if (p.status != "fulfilled"){
+                        console.warn(`error : ${p.reason} (when ${promisesLabel[idx]})`)
+                    }
+                })
+                return promisesStatus.filter((p)=>p.status=="fulfilled").map((p)=>p.value);
+            });
+        },
+        getParentFieldNameValues: function(fieldData){
+            switch (fieldData.type) {
+                case "checkbox":
+                case "checkboxdraganddrop":
+                    return this.getCheckboxValues(fieldData.nodes);
+                case "checkboxtag":
+                    return this.getCheckboxTagValues(fieldData.node);
+                case "radio":
+                    return this.getRadioValues(fieldData.nodes);
+                case "select":
+                    return this.getSelectValues(fieldData.node);
+                default:
+                    break;
+            }
+            return [];
         },
         getRadioValues: function (nodes){
             let values = [];
@@ -229,166 +589,154 @@ const enumlevel2Helper = {
             }
             return values;
         },
-        getParentFieldNameValues: function(fieldData){
-            switch (fieldData.type) {
-                case "checkbox":
-                case "checkboxdraganddrop":
-                    return this.getCheckboxValues(fieldData.nodes);
-                case "checkboxtag":
-                    return this.getCheckboxTagValues(fieldData.node);
-                case "radio":
-                    return this.getRadioValues(fieldData.nodes);
-                case "select":
-                    return this.getSelectValues(fieldData.node);
-                default:
-                    break;
-            }
-            return [];
-        },
-        asyncGetForm: function (formId, successFunction){
-            if (this.forms.hasOwnProperty(formId)){
-                successFunction(this.forms[formId]);
-            } else if (this.formsLoadedFunctions.hasOwnProperty(formId)) {
-                // append success function to formsLoadedFunctions instead of start a new xhr
-                this.formsLoadedFunctions[formId].push(successFunction);
-            } else {
-                this.formsLoadedFunctions[formId] = [successFunction];
-                // 1. Create a new XMLHttpRequest object
-                let xhr = new XMLHttpRequest();
-                // 2. Configure it: GET-request
-                xhr.open('GET',wiki.url(`?api/forms/${formId}`));
-                // 3. Listen load
-                xhr.onload = () =>{
-                    if (xhr.status == 200){
-                        let responseDecoded = JSON.parse(xhr.response);
-                        if (responseDecoded && responseDecoded.hasOwnProperty('bn_id_nature') &&
-                            responseDecoded.bn_id_nature == formId){
-                            this.forms[formId] = responseDecoded;
-                            this.formsLoadedFunctions[formId].forEach((funtionName)=>{funtionName(this.forms[formId])})
-                        }
-                    }
-                }
-                // 4. Send the request over the network
-                xhr.send();
-            }
-        },
-        appendChildrenFieldsPropertyNamestoParentForm: function(form,parentField){
-            if (!form.hasOwnProperty('childrenFieldsPropertyNames')){
-                form.childrenFieldsPropertyNames = {};
-            }
-            parentField.childrenIds.forEach((childId)=>{
-                if (!form.childrenFieldsPropertyNames.hasOwnProperty(childId)){
-                    form.childrenFieldsPropertyNames[childId] = {};
-                    let childLinkedObjectId= this.levels2[childId].linkedObjectId;
-                    if (childLinkedObjectId.length > 0){
-                        let prepared = (Array.isArray(form.prepared))
-                            ? form.prepared
-                            : (
-                                typeof form.prepared == "object"
-                                ? Object.values(form.prepared)
-                                : []
+        importElement: function(element){
+            let propertyName = element.dataset.fieldPropertyname || '';
+            let parentFieldName = element.dataset.fieldParentFieldname || '';
+            let fieldName = element.dataset.fieldName || '';
+            let associatingFormId = element.dataset.fieldAssociatingFormId || '';
+            if (propertyName.length > 0 && parentFieldName.length > 0){
+                this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId};
+                let field = this.findField(propertyName);
+                if (field && typeof field == "object"){
+                    this.levels2[propertyName].type = field.type;
+                    this.levels2[propertyName].node = 'node' in field ? field.node : null ;
+                    this.levels2[propertyName].nodes = 'nodes' in field ? field.nodes : null ;
+                    this.levels2[propertyName].linkedObjectId = field.linkedObjectId ;
+                    if (parentFieldName in this.parents){
+                        this.levels2[propertyName].parentId = parentFieldName;
+                        this.parents[parentFieldName].childrenIds = [...this.parents[parentFieldName].childrenIds,propertyName];
+                        this.parents[parentFieldName].isForm = !(
+                                !this.parents[parentFieldName].isForm || 
+                                (associatingFormId.length == 0)
                             );
-    
-                        prepared.forEach((field)=> {
-                            if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                                .includes(field.type) && field.linkedObjectName == childLinkedObjectId){
-                                form.childrenFieldsPropertyNames[childId][field.propertyname] = field
+                    } else {
+                        field = this.findField(parentFieldName,associatingFormId);
+                        if (field && typeof field == "object"){
+                            this.parents[parentFieldName] = {
+                                type: field.type,
+                                node: 'node' in field ? field.node : null,
+                                nodes: 'nodes' in field ? field.nodes : null,
+                                linkedObjectId: field.linkedObjectId,
+                                childrenIds: [propertyName],
+                                isForm: (associatingFormId.length == 0),
                             }
-                        });
+                            this.levels2[propertyName].parentId = parentFieldName
+                        }
                     }
                 }
-            });
+            }
         },
-        asyncGetEntry: function (entryId,nextFunction){
-            if (this.entries.hasOwnProperty(entryId)){
-                nextFunction(this.entries[entryId]);
+        registerTriggersOnParents: function(){
+            for (const parentFieldName in this.parents){
+                if (this.parents[parentFieldName].node){
+                    this.parents[parentFieldName].node.onchange = () => {
+                        this.resolveChange(parentFieldName);
+                    };
+                }
+                if (this.parents[parentFieldName].nodes){
+                    this.parents[parentFieldName].nodes.forEach((node)=>{
+                        node.onchange = () => {
+                            this.resolveChange(parentFieldName);
+                        };
+                    })
+                }
+            }
+        },
+        resolveChange: async function(parentFieldName){
+            if (!(parentFieldName in this.parents)){
+                return null;
+            }
+            return await this.updateChildren({[parentFieldName]:this.parents[parentFieldName]});
+        },
+        setEventTriggered: function (eventName){
+            if (typeof eventName == "string" && (eventName in this.eventsListeners)){
+                this.eventsListeners[eventName] = this.eventsListeners[eventName].map((evenData)=>{
+                    evenData.triggered = true;
+                    return evenData;
+                })
+            }
+        },
+        updateChildren: async function(parentsFields){
+            if (typeof parentsFields != "object"){
+                throw "'parentsFields' should be an object with format 'fieldName' => field";
             } else {
-                // 1. Create a new XMLHttpRequest object
-                let xhr = new XMLHttpRequest();
-                // 2. Configure it: GET-request
-                xhr.open('GET',wiki.url(`?api/entries/json/${entryId}`));
-                // 3. Listen load
-                xhr.onload = () =>{
-                    if (xhr.status == 200){
-                        let responseDecoded = JSON.parse(xhr.response);
-                        if (responseDecoded && typeof responseDecoded == "object"){
-                            let firstValue = Object.values(responseDecoded)[0];
-                            if (firstValue.hasOwnProperty('id_fiche') &&
-                                firstValue.id_fiche == entryId){
-                                this.entries[entryId] = firstValue;
-                                nextFunction(this.entries[entryId]);
+                let promises = [];
+                let promisesLabel = [];
+                for (let fieldName in parentsFields){
+                    let parentField = parentsFields[fieldName];
+                    if (parentField && parentField.linkedObjectId.length > 0){
+                        let values = this.getParentFieldNameValues(parentField);
+                        if (parentField.isForm){
+                            promises.push(
+                                new Promise((resolve,reject)=>{
+                                    this.getForm(parentField.linkedObjectId).then((form)=>{
+                                        this.getAvailableSecondLevelsValues(form,parentField,values).then(([secondLevelValues,formInt])=>{
+                                            this.updateSecondLevel(secondLevelValues);
+                                            resolve(formInt);
+                                        })
+                                        .catch((e)=>reject(e));
+                                    })
+                                    .catch((e)=>{
+                                        reject(e);
+                                    })
+                                })
+                            )
+                            promisesLabel.push(`getting form ${parentField.linkedObjectId}`);
+                            // start getting entries in parallel of form
+                            promises.push(
+                                new Promise((resolve,reject)=>{
+                                    this.getParentEntries(values).then((entries)=>{
+                                        resolve(entries);
+                                    })
+                                    .catch((e)=>{
+                                        reject(e);
+                                    })
+                                })
+                            )
+                            promisesLabel.push(`getting parentEntries for ${JSON.stringify(values)}`);
+                        } else {
+                            let formsIds = this.extractListOfAssociatingForms(fieldName,parentField);
+                            for (let formId of formsIds){
+                                promises.push(
+                                    new Promise((resolve,reject)=>{
+                                        this.getForm(formId).then((form)=>{
+                                            this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values).then((secondLevelValues)=>{
+                                                this.updateSecondLevel(secondLevelValues);
+                                                resolve(form)
+                                            })
+                                            .catch((e)=>reject(e));
+                                        })
+                                        .catch((e)=>{
+                                            reject(e);
+                                        })
+                                    })
+                                )
+                                promisesLabel.push(`getting form ${formId}`);
+                                // start getting entries in parallel of form
+                                promises.push(
+                                    new Promise((resolve,reject)=>{
+                                        this.getAllEntries(formId).then((entries)=>{
+                                            resolve(entries);
+                                        })
+                                        .catch((e)=>{
+                                            reject(e);
+                                        })
+                                    })
+                                )
+                                promisesLabel.push(`getting all entries of form ${formId}`);
                             }
                         }
-                    } else {
-                        nextFunction(null);
                     }
                 }
-                // 4 .listen error
-                xhr.onerror = () => {
-                    nextFunction(null);
-                };
-                // 5. Send the request over the network
-                xhr.send();
-            }
-        },
-        asyncGetParentEntries: function(entriesIds,nextFunction){
-            if (entriesIds.length == 0){
-                nextFunction();
-                return;
-            }
-            let restEntriesIds = [...entriesIds];
-            let currentEntry = restEntriesIds.shift(restEntriesIds);
-            if (!currentEntry ||currentEntry.length == 0){
-                if (restEntriesIds.length == 0){
-                    nextFunction();
-                    return;
-                } else {
-                    this.asyncGetParentEntries(restEntriesIds,nextFunction)
-                }
-            }
-            this.asyncGetEntry(currentEntry,() => {
-                if (restEntriesIds.length == 0){
-                    nextFunction();
-                } else {
-                    this.asyncGetParentEntries(restEntriesIds,nextFunction)
-                }
-            })
-        },
-        asyncGetAvailableSecondLevelsValues: function(parentForm,parentField,values,nextFunction){
-            if (!parentForm.hasOwnProperty('childrenFieldsPropertyNames')){
-                this.appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField);
-            }
-            this.asyncGetParentEntries(values,()=>{
-                let secondLevelValues = {};
-                parentField.childrenIds.forEach((childId)=>{
-                    secondLevelValues[childId] = [];
-                    if (parentForm.childrenFieldsPropertyNames.hasOwnProperty(childId)){
-                        values.forEach((parentEntryId)=>{
-                            if (this.entries.hasOwnProperty(parentEntryId)){
-                                let parentEntry = this.entries[parentEntryId];
-                                for (let propName in parentForm.childrenFieldsPropertyNames[childId]){
-                                    if (parentEntry.hasOwnProperty(propName) && 
-                                        typeof parentEntry[propName] == "string" && 
-                                        parentEntry[propName].length > 0){ 
-                                        parentEntry[propName].split(',').forEach((entryId)=>{
-                                            if (!secondLevelValues[childId].includes(entryId)){
-                                                secondLevelValues[childId].push(entryId);
-                                            }
-                                        })
-                                        }
-                                }
-                            }
-                        })
-                    }
+                return await Promise.allSettled(promises).then((promisesStatus)=>{
+                    promisesStatus.forEach((p,idx)=>{
+                        if (p.status != "fulfilled"){
+                            console.warn(`error : ${p.reason} (when ${promisesLabel[idx]})`)
+                        }
+                    });
+                    return promisesStatus;
                 });
-                nextFunction(secondLevelValues);
-            })
-        },
-        extractInputCheckboxValue: function(node){
-            let name = node.getAttribute('name');
-            let match = name.match(/\[[A-Za-z0-9_\-]+\]$/);
-            if (!match) return ""
-            return match[0].slice(1,-1);
+            }
         },
         updateSecondLevel: function(secondLevelValues){
             let nodesForWhatDispatchChangeEvent = [];
@@ -405,7 +753,7 @@ const enumlevel2Helper = {
                             }
                             if (secondLevelValues[childId].includes(currentValue)){
                                 if (baseNode.classList.contains('enumlevel2-backup')){
-                                    let oldValue = node.dataset.hasOwnProperty('wasChecked') && ([1,true,"true","1"].includes(node.dataset.wasChecked));
+                                    let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked));
                                     nodesForWhatDispatchChangeEvent.push(node);
                                     baseNode.classList.remove('enumlevel2-backup');
                                     if (node.checked != oldValue){
@@ -435,7 +783,7 @@ const enumlevel2Helper = {
                                 currentAvailableValues = [];
                             }
                             let defaultAvailableValues = currentAvailableValues
-                            if (!field.node.dataset.hasOwnProperty('defaultAvailableValues')){
+                            if (!('defaultAvailableValues' in field.node.dataset)){
                                 field.node.dataset.defaultAvailableValues = JSON.stringify(defaultAvailableValues);
                             } else {
                                 defaultAvailableValues = JSON.parse(field.node.dataset.defaultAvailableValues);
@@ -444,12 +792,12 @@ const enumlevel2Helper = {
                             selectedValues = (selectedValues == "") ? [] : selectedValues.split(",");
                             selectedValues.map((val)=>{String(val)});
                             let backupSelectedValues = 
-                                field.node.dataset.hasOwnProperty('backupSelectedValues')
+                                'backupSelectedValues' in field.node.dataset
                                 ? JSON.parse(field.node.dataset.backupSelectedValues)
                                 : [];
                             let newValuesIds = [];
                             let newValues = {};
-                            Object.keys(defaultAvailableValues).forEach((key)=>{
+                            for (let key in defaultAvailableValues){
                                 let currentValue = String(defaultAvailableValues[key].id);
                                 if (secondLevelValues[childId].includes(currentValue)){
                                     if (!newValuesIds.includes(currentValue)){
@@ -468,7 +816,7 @@ const enumlevel2Helper = {
                                         backupSelectedValues.push(currentValue)
                                     }
                                 }
-                            });
+                            };
                             // reset tagsinput
                             $node.tagsinput('destroy');
                             let newoptions = {
@@ -496,7 +844,7 @@ const enumlevel2Helper = {
                             }
                             $node.tagsinput(newoptions)
                             selectedValues.forEach((val)=>{
-                                if (newValues.hasOwnProperty(val)){
+                                if (val in newValues){
                                     $node.tagsinput('add',newValues[val])
                                 }
                             });
@@ -510,7 +858,7 @@ const enumlevel2Helper = {
                             let baseNode = node.parentNode.parentNode;
                             if (secondLevelValues[childId].includes(currentValue)){
                                 if (baseNode.classList.contains('enumlevel2-backup')){
-                                    let oldValue = node.dataset.hasOwnProperty('wasChecked') && ([1,true,"true","1"].includes(node.dataset.wasChecked));
+                                    let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked));
                                     baseNode.classList.remove('enumlevel2-backup');
                                     if (oldValue){
                                         radioBtnToCheck.push(node);
@@ -549,7 +897,7 @@ const enumlevel2Helper = {
                             if (secondLevelValues[childId].includes(currentValue)){
                                 visiblesOptions.push(node);
                                 if (baseNode.classList.contains('enumlevel2-backup')){
-                                    let oldValue = node.dataset.hasOwnProperty('wasChecked') && ([1,true,"true","1"].includes(node.dataset.wasChecked));
+                                    let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked));
                                     baseNode.classList.remove('enumlevel2-backup');
                                     if (oldValue){
                                         selectOptionsToSelect.push(node);
@@ -576,52 +924,14 @@ const enumlevel2Helper = {
             let event = new Event("change");
             nodesForWhatDispatchChangeEvent.forEach((node)=>{node.dispatchEvent(event)});
         },
-        asyncUpdateChildren: function(parentsFields){
-            if (Array.isArray(parentsFields)){
-                let parentField = parentsFields.shift();
-                if (parentField && parentField.linkedObjectId.length > 0){
-                    let values = this.getParentFieldNameValues(parentField);
-                    this.asyncGetForm(parentField.linkedObjectId,(form)=>{
-                        this.asyncGetAvailableSecondLevelsValues(form,parentField,values,(secondLevelValues)=>{
-                            this.updateSecondLevel(secondLevelValues);
-                            if (parentsFields.length > 0){
-                                this.asyncUpdateChildren(parentsFields);
-                            }
-                        });
-                    })
-                }
-            }
-        },
-        resolveChange: function(parentFieldName){
-            if (!this.parents.hasOwnProperty(parentFieldName)){
-                return null;
-            }
-            this.asyncUpdateChildren([this.parents[parentFieldName]]);
-        },
-        registerTriggersOnParents: function(){
-            for (const parentFieldName in this.parents){
-                if (this.parents[parentFieldName].node){
-                    this.parents[parentFieldName].node.onchange = () => {
-                        this.resolveChange(parentFieldName);
-                    };
-                }
-                if (this.parents[parentFieldName].nodes){
-                    this.parents[parentFieldName].nodes.forEach((node)=>{
-                        node.onchange = () => {
-                            this.resolveChange(parentFieldName);
-                        };
-                    })
-                }
-            }
-        },
-        init: function(){
+        init: async function(){
             let elements = document.querySelectorAll(".enum-two-level-data");
             if (elements && elements.length > 0){
                 elements.forEach((element)=>this.importElement(element))
             }
             this.registerTriggersOnParents();
             // init
-            this.asyncUpdateChildren(Object.values(this.parents));
+            return await this.updateChildren(this.parents);
         }
     },
     initData: function(){
