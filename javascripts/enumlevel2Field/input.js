@@ -758,6 +758,7 @@ const enumlevel2Helper = {
                                     baseNode.classList.remove('enumlevel2-backup');
                                     if (node.checked != oldValue){
                                         node.dispatchEvent(new Event("click"))
+                                        node.checked = oldValue;
                                     }
                                 }
                             } else if (!baseNode.classList.contains('enumlevel2-backup')) {
@@ -765,6 +766,7 @@ const enumlevel2Helper = {
                                 baseNode.classList.add('enumlevel2-backup');
                                 if (node.checked){
                                     node.dispatchEvent(new Event("click"))
+                                    node.checked = false;
                                 }
                             }
                         })
@@ -853,39 +855,66 @@ const enumlevel2Helper = {
                         return ;
                     case "radio":
                         let radioBtnToCheck = [];
+                        let radioBtnToCheckBackup = [];
                         field.nodes.forEach((node)=>{
                             let currentValue = node.value;
                             let baseNode = node.parentNode.parentNode;
                             if (secondLevelValues[childId].includes(currentValue)){
+                                let oldValue = ('wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))) ||
+                                    (!('wasChecked' in node.dataset) && node.dataset.default);
                                 if (baseNode.classList.contains('enumlevel2-backup')){
-                                    let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked));
                                     baseNode.classList.remove('enumlevel2-backup');
                                     if (oldValue){
                                         radioBtnToCheck.push(node);
                                     }
                                 } else if (node.checked){
                                     radioBtnToCheck.push(node);
+                                } else if (oldValue){
+                                    radioBtnToCheckBackup.push(node);
                                 }
                             } else if (!baseNode.classList.contains('enumlevel2-backup')) {
                                 node.dataset.wasChecked = node.checked;
                                 baseNode.classList.add('enumlevel2-backup');
                                 if (node.checked){
+                                    node.checked = false
                                     node.dispatchEvent(new Event("click"))
                                 }
                             } else if (node.checked){
+                                node.checked = false
                                 node.dispatchEvent(new Event("click"))
-
                             }
                         })
-                        radioBtnToCheck.forEach((node,index)=>{
-                            if (index == 0){
-                                if (!node.checked){
+                        if (radioBtnToCheck.length > 0){
+                            radioBtnToCheck.forEach((node,index)=>{
+                                if (index == 0){
+                                    if (!node.checked){
+                                        node.dispatchEvent(new Event("click"))
+                                        node.checked = true
+                                    }
+                                } else if (node.checked){
+                                    node.checked = false
                                     node.dispatchEvent(new Event("click"))
                                 }
-                            } else if (node.checked){
-                                node.dispatchEvent(new Event("click"))
-                            }
-                        });
+                            });
+                            radioBtnToCheckBackup.forEach((node,index)=>{
+                                if (node.checked){
+                                    node.checked = false
+                                    node.dispatchEvent(new Event("click"))
+                                }
+                            });
+                        } else {
+                            radioBtnToCheckBackup.forEach((node,index)=>{
+                                if (index == 0){
+                                    if (!node.checked){
+                                        node.dispatchEvent(new Event("click"))
+                                        node.checked = true
+                                    }
+                                } else if (node.checked){
+                                    node.checked = false
+                                    node.dispatchEvent(new Event("click"))
+                                }
+                            });
+                        }
                         return;
                     case "select":
                         let selectOptionsToSelect = [];
