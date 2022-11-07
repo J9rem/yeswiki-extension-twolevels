@@ -30,26 +30,28 @@
     </div>
 
     <div class="results-container">
-      <Panel class="filter-box" v-for="filter, key in refreshedFiltersWithentries(filteredEntries,$root)" :collapsed.sync="filter.collapsed" :key="key">
-        <template #header>
-          <i v-html="filter.icon"></i>{{"{{ filter.title }}"}}
-        </template>
-        <template #body>
-          <template v-for="filterOption, id in filter.list">
-            <template v-if="filterOption.nb > 0">
-              <div class="checkbox" :key="id">
-                <label>
-                  <input class="filter-checkbox" type="checkbox" v-model="filterOption.checked" :value="filterOption.value">
-                  <span>
-                    <span v-html="filterOption.label"></span>
-                    <span class="nb" v-if="filterOption.nb">({{"{{ filterOption.nb }}"}})</span>
-                  </span>
-                </label>
-              </div>
+      <template v-for="filter, key in refreshedFiltersWithentries(filteredEntries,$root)">
+        <Panel class="filter-box" v-if="filterHasAtLeastOneOption(filter)" :collapsed.sync="filter.collapsed" :key="key">
+          <template #header>
+            <i v-html="filter.icon"></i>{{"{{ filter.title }}"}}
+          </template>
+          <template #body>
+            <template v-for="filterOption, id in filter.list">
+              <template v-if="filterOption.nb > 0">
+                <div class="checkbox" :key="id">
+                  <label>
+                    <input class="filter-checkbox" type="checkbox" v-model="filterOption.checked" :value="filterOption.value">
+                    <span>
+                      <span v-html="filterOption.label"></span>
+                      <span class="nb" v-if="filterOption.nb">({{"{{ filterOption.nb }}"}})</span>
+                    </span>
+                  </label>
+                </div>
+              </template>
             </template>
           </template>
-        </template>
-      </Panel>
+        </Panel>
+      </template>
     </div>
   </div>
 </div>

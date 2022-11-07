@@ -12,6 +12,9 @@ if (Vue) {
         Vue.prototype.twolevelswatcheractivated = false;
         Vue.prototype.twolevelstriggerwatcher = true;
     }
+    Vue.prototype.filterHasAtLeastOneOption = function(filter){
+        return filter.list.some((filterOption)=>filterOption.nb>0);
+    }
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
         if (root.params.intrafiltersmode === "and"){
             if (!Vue.prototype.twolevelswatcheractivated){
