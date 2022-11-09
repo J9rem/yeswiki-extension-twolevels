@@ -39,13 +39,13 @@
           </template>
           <template #body>
             <template v-for="filterOption, id in filter.list">
-              <template v-if="($root.params.intrafiltersmode !== 'and' && filterOption.checked) || filterOption.nb > 0">
+              <template v-if="($root.params.intrafiltersmode != 'and' && filterOption.checked) || filterOption.nb > 0">
                 <div class="checkbox" :key="id">
                   <label>
-                    <input class="filter-checkbox" type="checkbox" v-model="filterOption.checked" :value="filterOption.value" :disabled="(filterOption.nb == 0 && !filterOption.checked) ? {disabled:true} : false">
+                    <input class="filter-checkbox" type="checkbox" v-model="filterOption.checked" :value="filterOption.value">
                     <span>
                       <span v-html="filterOption.label"></span>
-                      <span class="nb" v-if="filterOption.nb">({{"{{ filterOption.nb }}"}})</span>
+                      <span class="nb">({{"{{ filterOption.nb }}"}})</span>
                     </span>
                   </label>
                 </div>
