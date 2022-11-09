@@ -8,42 +8,56 @@
  */
 
 if (Vue) {
-    if (!Vue.prototype.twolevelswatcheractivated){
-        Vue.prototype.twolevelswatcheractivated = false;
-        Vue.prototype.twolevelstriggerwatcher = true;
-    }
+    Vue.component('FilterLoadRoot', {
+        props: ['root'],
+        data: function(){
+            return {
+                actions: {
+                    filteredEntries: 'updateFilteredEntries',
+                    params: 'processParams'
+                },
+                unwatcher: {}
+            };
+        },
+        methods: {
+            processParams: function(){
+                this.unwatcher.params();
+                if (this.root.params.intrafiltersmode === "and"){
+                    this.registerWatcher('filteredEntries');
+                }
+            },
+            registerWatcher: function(varname){
+                if (varname in this.actions && typeof this[this.actions[varname]] == "function"){
+                    this.unwatcher[varname] = this.root.$watch(varname,()=>(this[this.actions[varname]])())
+                }
+            },
+            updateFilteredEntries: function(){
+                if (Object.keys(this.root.computedFilters).length > 0){
+                    let result = this.root.searchedEntries
+                    for(const filterId in this.root.computedFilters) {
+                        result = result.filter(entry => {
+                            if (!(filterId in entry) || typeof entry[filterId] != "string") return false;
+                            return this.root.computedFilters[filterId].every((value)=>entry[filterId].split(',').includes(value));
+                        })
+                    }
+                    this.unwatcher.filteredEntries();
+                    this.root.filteredEntries = result
+                    this.registerWatcher('filteredEntries');
+                    this.root.paginateEntries();
+                }
+            }
+        },
+        mounted(){
+            this.registerWatcher('params');
+        },
+        template: `
+        <span v-show="false"></span>
+        `
+    });
     Vue.prototype.filterHasAtLeastOneOption = function(filter){
         return filter.list.some((filterOption)=>filterOption.nb>0);
     }
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
-        if (root.params.intrafiltersmode === "and"){
-            if (!Vue.prototype.twolevelswatcheractivated){
-                Vue.prototype.twolevelswatcheractivated = true;
-                let updateFilteredEntries = function (root){
-                    if (Vue.prototype.twolevelstriggerwatcher){
-                        Vue.prototype.twolevelstriggerwatcher = false;
-                        let result = root.searchedEntries
-                            for(const filterId in root.computedFilters) {
-                                result = result.filter(entry => {
-                                    if (!entry[filterId] || typeof entry[filterId] != "string") return false
-                                    return entry[filterId].split(',').every(value => {
-                                        return root.computedFilters[filterId].includes(value)
-                                    }) && root.computedFilters[filterId].length == entry[filterId].split(',').length
-                                })
-                        }
-                        root.filteredEntries = result
-                        root.paginateEntries();
-                    }
-                    root.$nextTick(()=>{
-                        Vue.prototype.twolevelstriggerwatcher = true;
-                    })
-                };
-                // set watcher
-                root.$watch('filteredEntries',()=>{
-                    updateFilteredEntries(root);
-                });
-            }
-        }
         let modeThanOneCheckedFiltersName = [];
         for(let fieldName in root.filters) {
             for (let option of root.filters[fieldName].list) {
@@ -79,6 +93,14 @@ if (Vue) {
                 availableEntriesForThisFilter = (root.params.template === "map")
                     ? root.filteredEntries.filter(entry => entry.bf_latitude && entry.bf_longitude)
                     : root.filteredEntries
+            }
+            if (root.params.intrafiltersmode === "and"){
+                for(const filterId in root.computedFilters) {
+                    availableEntriesForThisFilter = availableEntriesForThisFilter.filter((entry)=>{
+                        if (!(filterId in entry) || typeof entry[filterId] != "string") return false;
+                        return root.computedFilters[filterId].every((value)=>entry[filterId].split(',').includes(value));
+                    });
+                }
             }
             for (let option of root.filters[fieldName].list) {
                 option.nb = availableEntriesForThisFilter.filter(entry => {

@@ -7,6 +7,8 @@
 
 {{ include_javascript('tools/twolevels/javascripts/bazar/define-common.js') }}
 
+<filter-load-root :root="$root"></filter-load-root>
+
 <div class="filters-col col-sm-{{ params.filtercolsize }}">
   {% if params.search %}
     {{ include("@bazar/entries/index-dynamic/_search_input.twig") }}
