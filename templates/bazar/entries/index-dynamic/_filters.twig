@@ -5,6 +5,8 @@
 # modification of https://github.com/YesWiki/yeswiki/blob/doryphore-dev/tools/bazar/templates/entries/index-dynamic/_filters.twig
 #}
 
+{{ include_javascript('tools/twolevels/javascripts/bazar/define-common.js') }}
+
 <div class="filters-col col-sm-{{ params.filtercolsize }}">
   {% if params.search %}
     {{ include("@bazar/entries/index-dynamic/_search_input.twig") }}
