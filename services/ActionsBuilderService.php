@@ -76,6 +76,18 @@ trait ActionsBuilderServiceCommon
                         'and' => _t('TWOLEVELS_INTRAFILTERSMODE_AND'),
                     ]
                 ];
+                $newProps['autohidefilter'] = [
+                    'label' => _t('TWOLEVELS_AUTOHIDEFILTER_LABEL'),
+                    'type' => 'checkbox',
+                    'advanced' => true,
+                    'default' => true,
+                    'showOnlyFor' => [
+                        'bazarliste',
+                        'bazarcarto',
+                        'bazarcalendar',
+                        'bazarcard',
+                    ]
+                ];
                 foreach ($previousProperties as $key => $content) {
                     if ($key != 'facettes') {
                         $newProps[$key] = $content;

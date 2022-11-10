@@ -8,6 +8,20 @@
  */
 
 if (Vue) {
+    Vue.prototype.isDisplayedFilterOption = function(filterOption,root){
+        return root.params.autohidefilter === "false" ||
+            (root.params.intrafiltersmode != 'and' && filterOption.checked) 
+            || filterOption.nb > 0
+        ;
+    }
+    Vue.prototype.filterHasAtLeastOneOption = function(filter,root){
+        if (typeof customfilterHasAtLeastOneOption == "function"){
+            // allow usage of custom function if available
+            return customfilterHasAtLeastOneOption(filter,root)
+        } else {
+            return filter.list.some((filterOption)=>Vue.prototype.isDisplayedFilterOption(filterOption,root));
+        }
+    }
     Vue.component('FilterLoadRoot', {
         props: ['root'],
         data: function(){
@@ -54,9 +68,6 @@ if (Vue) {
         <span v-show="false"></span>
         `
     });
-    Vue.prototype.filterHasAtLeastOneOption = function(filter){
-        return filter.list.some((filterOption)=>filterOption.nb>0);
-    }
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
         let modeThanOneCheckedFiltersName = [];
         for(let fieldName in root.filters) {
@@ -103,12 +114,17 @@ if (Vue) {
                 }
             }
             for (let option of root.filters[fieldName].list) {
-                option.nb = availableEntriesForThisFilter.filter(entry => {
-                    let entryValues = entry[fieldName]
-                    if (!entryValues || typeof entryValues != "string") return
-                    entryValues = entryValues.split(',')
-                    return entryValues.some(value => value == option.value)
-                }).length
+                if (typeof customCalculatebFromAvailableEntries == "function"){
+                    // allow usage of custom function if available
+                    option.nb = customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName)
+                } else {
+                    option.nb = availableEntriesForThisFilter.filter(entry => {
+                        let entryValues = entry[fieldName]
+                        if (!entryValues || typeof entryValues != "string") return
+                        entryValues = entryValues.split(',')
+                        return entryValues.some(value => value == option.value)
+                    }).length
+                }
             }
         }
         return root.filters;
