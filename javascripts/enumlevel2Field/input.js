@@ -20,6 +20,7 @@ const enumlevel2Helper = {
             loadingAllEntries: [],
             loadingEntries: [],
             loadingForms: [],
+            registeringCorrespondances: []
         };
     },
     methods: {
@@ -40,52 +41,52 @@ const enumlevel2Helper = {
         appendChildrenFieldsPropertyNamestoParentForm: function(form,parentField){
             if (!('childrenFieldsPropertyNames' in form)){
                 form.childrenFieldsPropertyNames = {};
-                parentField.childrenIds.forEach((childId)=>{
-                    if (!(childId in form.childrenFieldsPropertyNames)){
-                        form.childrenFieldsPropertyNames[childId] = {};
-                        let childLinkedObjectId= this.levels2[childId].linkedObjectId;
-                        if (childLinkedObjectId.length > 0){
-                            let prepared = (Array.isArray(form.prepared))
-                                ? form.prepared
-                                : (
-                                    typeof form.prepared == "object"
-                                    ? Object.values(form.prepared)
-                                    : []
-                                );
-        
-                            prepared.forEach((field)=> {
-                                if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                                    .includes(field.type) && field.linkedObjectName == childLinkedObjectId){
-                                    form.childrenFieldsPropertyNames[childId][field.propertyname] = field
-                                }
-                            });
-                        }
-                    }
-                });
             }
+            parentField.childrenIds.forEach((childId)=>{
+                if (!(childId in form.childrenFieldsPropertyNames)){
+                    form.childrenFieldsPropertyNames[childId] = {};
+                    let childLinkedObjectId= this.levels2[childId].linkedObjectId;
+                    if (childLinkedObjectId.length > 0){
+                        let prepared = (Array.isArray(form.prepared))
+                            ? form.prepared
+                            : (
+                                typeof form.prepared == "object"
+                                ? Object.values(form.prepared)
+                                : []
+                            );
+    
+                        prepared.forEach((field)=> {
+                            if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
+                                .includes(field.type) && field.linkedObjectName == childLinkedObjectId){
+                                form.childrenFieldsPropertyNames[childId][field.propertyname] = field
+                            }
+                        });
+                    }
+                }
+            });
             return form;
         },
         appendParentsFieldsPropertyNamestoParentForm: function(form,fieldName,parentField){
             if (!('parentsFieldsPropertyNames' in form)){
                 form.parentsFieldsPropertyNames = {};
+            }
 
-                if (fieldName && fieldName.length > 0 && 
-                    !(fieldName in form.parentsFieldsPropertyNames)){
-                    form.parentsFieldsPropertyNames[fieldName] = {};
-                    let prepared = (Array.isArray(form.prepared))
-                        ? form.prepared
-                        : (
-                            typeof form.prepared == "object"
-                            ? Object.values(form.prepared)
-                            : []
-                        );
-                    prepared.forEach((field)=> {
-                        if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                            .includes(field.type) && field.linkedObjectName == parentField.linkedObjectId){
-                            form.parentsFieldsPropertyNames[fieldName][field.propertyname] = field
-                        }
-                    });
-                }
+            if (fieldName && fieldName.length > 0 && 
+                !(fieldName in form.parentsFieldsPropertyNames)){
+                form.parentsFieldsPropertyNames[fieldName] = {};
+                let prepared = (Array.isArray(form.prepared))
+                    ? form.prepared
+                    : (
+                        typeof form.prepared == "object"
+                        ? Object.values(form.prepared)
+                        : []
+                    );
+                prepared.forEach((field)=> {
+                    if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
+                        .includes(field.type) && field.linkedObjectName == parentField.linkedObjectId){
+                        form.parentsFieldsPropertyNames[fieldName][field.propertyname] = field
+                    }
+                });
             }
             return form;
         },
@@ -399,83 +400,74 @@ const enumlevel2Helper = {
             });
             return values;
         },
-        getCorrespondances: async function(associatingForm,fieldName,parentField){
+        getCorrespondances: async function(associatingForm,fieldName){
             if (associatingForm.bn_id_nature in this.correspondances){
                 return this.correspondances[associatingForm.bn_id_nature];
             } else {
                 return await this.getAllEntries(associatingForm.bn_id_nature)
-                    .then((entries)=>{
-                        let correspondances = {};
-                        entries.forEach((e)=>{
-                            let tmp = {
-                                parents: [],
-                                children: {}
+                    .then((entries)=>this.registerCorrespondances(associatingForm.bn_id_nature,async ()=>{
+                            let entries = this.allEntriesCache[associatingForm.bn_id_nature] || [];
+                            if (entries.length == 0){
+                                console.log(`entries should not be empty`);
                             }
-                            for (const propertyName in associatingForm.parentsFieldsPropertyNames[fieldName]) {
-                                tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents);
-                            }
-                            for (const childId in associatingForm.childrenFieldsPropertyNames) {
-                                tmp.children[childId] = [];
-                                for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
-                                    tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId]);
+                            let correspondances = {};
+                            entries.forEach((e)=>{
+                                let tmp = {
+                                    parents: [],
+                                    children: {}
                                 }
-                            }
-                            tmp.parents.forEach((p)=>{
-                                if (!(p in correspondances)){
-                                    correspondances[p] = {};
+                                for (const propertyName in associatingForm.parentsFieldsPropertyNames[fieldName]) {
+                                    tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents);
                                 }
-                                for (const childId in tmp.children) {
-                                    if (!(childId in correspondances[p])){
-                                        correspondances[p][childId] = [];
+                                for (const childId in associatingForm.childrenFieldsPropertyNames) {
+                                    tmp.children[childId] = [];
+                                    for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
+                                        tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId]);
                                     }
-                                    tmp.children[childId].forEach((val)=>{
-                                        if (!correspondances[p][childId].includes(val)){
-                                            correspondances[p][childId] = [...correspondances[p][childId],val];
-                                        }
-                                    });
                                 }
-                                
-                            });
+                                tmp.parents.forEach((p)=>{
+                                    if (!(p in correspondances)){
+                                        correspondances[p] = {};
+                                    }
+                                    for (const childId in tmp.children) {
+                                        if (!(childId in correspondances[p])){
+                                            correspondances[p][childId] = [];
+                                        }
+                                        tmp.children[childId].forEach((val)=>{
+                                            if (!correspondances[p][childId].includes(val)){
+                                                correspondances[p][childId] = [...correspondances[p][childId],val];
+                                            }
+                                        });
+                                    }
+                                    
+                                });
+                            })
+                            this.correspondances[associatingForm.bn_id_nature] = correspondances;
+                            return correspondances;
                         })
-                        this.correspondances[associatingForm.bn_id_nature] = correspondances;
-                        return correspondances;
-                    })
+                    );
             }
         },
         getData: async function(url,id,eventPrefix,loadingCacheName,testFunction){
-            let p = new Promise((resolve,reject)=>{
-                    this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve());
-                    this.addEventOnce(`${eventPrefix}.${id}.error`,(e)=>reject(e));
-                    if (!this[loadingCacheName].includes(id)){
-                        this[loadingCacheName] = [...this[loadingCacheName],id];
-                        let resettingLoadingForms = ()=>{
-                            this[loadingCacheName] = this[loadingCacheName].filter((idToCheck)=>idToCheck!=id)
-                        };
-                        this.addEventOnce(`${eventPrefix}.${id}.error`,resettingLoadingForms);
-                        this.addEventOnce(`${eventPrefix}.${id}.ready`,resettingLoadingForms);
-                        this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>{
-                            this.setEventTriggered(`${eventPrefix}.${id}.error`);
-                        });
-                        fetch(url)
-                           .then((response)=>{
-                                if (!response.ok){
-                                    this.dispatchEvent(`${eventPrefix}.${id}.error`,`response not ok when fetching ${url}`);
-                                } else {
-                                    response.json()
-                                        .then((responseDecoded)=>{
-                                            if (typeof testFunction == "function" && testFunction(responseDecoded)){
-                                                this.dispatchEvent(`${eventPrefix}.${id}.ready`)
-                                            } else {
-                                                this.dispatchEvent(`${eventPrefix}.${id}.error`,'response badly formatted')
-                                            }
-                                        })
-                                        .catch((e)=>{this.dispatchEvent(`${eventPrefix}.${id}.error`,e)})
-                                }
-                           })
-                           .catch((e)=>{this.dispatchEvent(`${eventPrefix}.${id}.error`,e)})
-                    }
-                });
-            return await p.then((form)=>{return form});
+            if (typeof testFunction != "function"){
+                throw "'testFunction' should be a function";
+            }
+            return await this.manageInternalEvents(id,eventPrefix,loadingCacheName,async ()=>{
+                return fetch(url)
+                    .then((response)=>{
+                        if (!response.ok){
+                            throw `response not ok when fetching ${url}`;
+                        } else {
+                            return response.json();
+                        }
+                    })
+                    .then((responseDecoded)=>{
+                        if (!testFunction(responseDecoded)){
+                            throw 'response badly formatted';
+                        }
+                        return responseDecoded;
+                    })
+            }).then((form)=>{return form});
         },
         getEntry: async function (entryId){
             this.assertIsRegularEntryId(entryId);
@@ -625,6 +617,42 @@ const enumlevel2Helper = {
                     }
                 }
             }
+        },
+        manageInternalEvents: async function(id,eventPrefix,loadingCacheName,asynFunc){
+            let p = new Promise((resolve,reject)=>{
+                this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve());
+                this.addEventOnce(`${eventPrefix}.${id}.error`,(e)=>reject(e));
+                if (!this[loadingCacheName].includes(id)){
+                    this[loadingCacheName] = [...this[loadingCacheName],id];
+                    let resettingLoadingForms = ()=>{
+                        this[loadingCacheName] = this[loadingCacheName].filter((idToCheck)=>idToCheck!=id)
+                    };
+                    this.addEventOnce(`${eventPrefix}.${id}.error`,resettingLoadingForms);
+                    this.addEventOnce(`${eventPrefix}.${id}.ready`,resettingLoadingForms);
+                    this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>{
+                        this.setEventTriggered(`${eventPrefix}.${id}.error`);
+                    });
+                    asynFunc()
+                        .then((...args)=>{
+                            this.dispatchEvent(`${eventPrefix}.${id}.ready`)
+                            return Promise.resolve(...args);
+                        })
+                        .catch((e)=>{this.dispatchEvent(`${eventPrefix}.${id}.error`,e)})
+                }
+            });
+            return await p.then((...args)=>Promise.resolve(...args));
+        },
+        registerCorrespondances: async function(formId,asyncFunc){
+            if (formId in this.correspondances){
+                return this.correspondances[formId];
+            }
+            return await this.manageInternalEvents(formId,'registerCorrespondances','registeringCorrespondances',asyncFunc).then((...args)=>{
+                if (formId in this.correspondances){
+                    return this.correspondances[formId];
+                } else {
+                    throw `this.correspondances should contain key '${formId}'at this state !`
+                }
+            });
         },
         registerTriggersOnParents: function(){
             for (const parentFieldName in this.parents){
