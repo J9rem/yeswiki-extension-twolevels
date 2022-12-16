@@ -56,7 +56,7 @@ trait EnumLevel2CommonsTrait
     {
         // set local properties
         $this->displayMethod = $values[EnumLevel2CommonsField::FIELD_DISPLAY_METHOD];
-        $explodedParam = explode('|',trim((
+        $explodedParam = explode('|', trim((
             !empty($values[EnumLevel2CommonsField::FIELD_FIELDNAME]) &&
             is_string($values[EnumLevel2CommonsField::FIELD_FIELDNAME])
         ) ? $values[EnumLevel2CommonsField::FIELD_FIELDNAME] : ''));
@@ -95,8 +95,12 @@ trait EnumLevel2CommonsTrait
         if (!empty($parentField)) {
             $values = $this->getFieldValues($this, $entry);
             $parentValues = $this->getFieldValues($parentField, $entry);
-            $childFields = $this->getChildrenFields($parentField, $this->getLinkedObjectName());
-            $availableValues = $this->getAvailableChildrenValues($parentValues, $childFields);
+            if (!empty($this->getAssociatingFormId())) {
+                $availableValues = $this->getAvailableChildrenValuesFromLists($parentValues, $parentField->getLinkedObjectName());
+            } else {
+                $childFields = $this->getChildrenFields($parentField, $this->getLinkedObjectName());
+                $availableValues = $this->getAvailableChildrenValues($parentValues, $childFields);
+            }
             $values = array_filter($values, function ($value) use ($availableValues) {
                 return in_array($value, $availableValues);
             });
@@ -182,6 +186,61 @@ trait EnumLevel2CommonsTrait
                 }
             }
         }
+        return $availableValues;
+    }
+
+    protected function getAvailableChildrenValuesFromLists(array $parentValues, string $parentLinkedObjectName): array
+    {
+        $availableValues = [];
+        $associatingFormId = $this->formatFormId($this->getAssociatingFormId());
+        if (!empty($associatingFormId)) {
+            $formManager = $this->getService(FormManager::class);
+            $form = $formManager->getOne($associatingFormId);
+            $fields = [];
+            foreach ($form['prepared'] as $field) {
+                if ($field instanceof EnumField && $field->getLinkedObjectName() == $parentLinkedObjectName && $field->getPropertyName() !== "") {
+                    $fields[] = $field;
+                    break;
+                }
+            }
+            if (!empty($fields)) {
+                $parentField = $fields[0];
+                $linkedObjectName = $this->getLinkedObjectName();
+                $fields = [];
+                foreach ($form['prepared'] as $field) {
+                    if ($field instanceof EnumField && $field->getLinkedObjectName() == $linkedObjectName && $field->getPropertyName() !== "") {
+                        $fields[] = $field;
+                        break;
+                    }
+                }
+                if (!empty($fields)) {
+                    $childField = $fields[0];
+                    $entryManager = $this->getService(EntryManager::class);
+                    $entries = $entryManager->search([
+                        'formsIds' => [$associatingFormId],
+                        'queries' => [
+                            $parentField->getPropertyName() => implode(',', $parentValues)
+                        ]
+                    ]);
+                    if (!empty($entries)) {
+                        foreach ($entries as $entry) {
+                            $parentValuesInEntry = $this->getFieldValues($parentField, $entry);
+                            if (count(array_filter($parentValues, function ($v) use ($parentValuesInEntry) {
+                                return in_array($v, $parentValuesInEntry);
+                            }))>0) {
+                                $childrenValuesInEntry = $this->getFieldValues($childField, $entry);
+                                foreach ($childrenValuesInEntry as $value) {
+                                    if (!in_array($value, $availableValues)) {
+                                        $availableValues[] = $value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         return $availableValues;
     }
 
