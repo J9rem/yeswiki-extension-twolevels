@@ -188,7 +188,7 @@ formatJsonDataIntoWikiText = function(formData) {
         var value = formElement[property];
         if (["required", "access"].indexOf(property) > -1)
           value = value ? "1" : "0";
-        if (property == "label"){
+        if (property == "label" && (typeof value === 'string' || value instanceof String)){
           wikiProps[key] = removeBR(value).replace(/\n$/gm,"");
         } else {
           wikiProps[key] = value ;
