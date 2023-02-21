@@ -1,0 +1,23 @@
+/*
+ * This file is part of the YesWiki Extension twolevels.
+ *
+ * Authors : see README.md file that was distributed with this source code.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+.enum-two-level-data,
+.enumlevel2-backup,
+.enumlevel2-backup.list-group-item{
+    display: none ;
+}
+
+.enumlevel2-baseNode.list-group-item[style*="display:list-item;"].enumlevel2-backup,
+.enumlevel2-baseNode.list-group-item[style*="display: list-item;"].enumlevel2-backup{
+    display: none !important;
+}
+.enumlevel2-baseNode.list-group-item[style*="display:list-item;"]:not(.enumlevel2-backup),
+.enumlevel2-baseNode.list-group-item[style*="display: list-item;"]:not(.enumlevel2-backup){
+    display: flex !important;
+}

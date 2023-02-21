@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<plugin name="twolevels" version="1.0" active="1">
+  <author>Jeremy Dufraisse (J9rem)</author>
+  <label>Twolevels</label>
+  <desc>Manage twolevels lists</desc>
+</plugin>

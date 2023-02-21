@@ -1,0 +1,16 @@
+{# # This file is part of the YesWiki Extension twolevels.
+# Authors : see README.md file that was distributed with this source code.
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code. #}
+
+{{ include_css("tools/twolevels/styles/enumlevel2Field.css") }}
+
+<span 
+    class="enum-two-level-data" 
+    data-field-propertyname="{{field.propertyname}}"
+    data-field-parent-fieldname="{{field.parentFieldName}}"
+    data-field-name="{{field.name}}"
+    data-field-associating-form-id="{{field.associatingFormId}}"
+></span>
+
+{{ include_javascript("tools/twolevels/javascripts/enumlevel2Field/input.js") }}
