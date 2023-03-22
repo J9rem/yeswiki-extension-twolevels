@@ -99,9 +99,29 @@ const enumlevel2Helper = {
                         ? Object.values(form.prepared)
                         : []
                     );
+                const isList = (type) => {
+                    return ["checkbox","radio","liste"].includes(type)
+                }
+                const isEntry = (type) => {
+                    return ["checkboxfiche","radiofiche","listefiche"].includes(type)
+                }
+                const isEnum2Level = (field,wantedType = '') => {
+                    return field.type == "enumlevel2" && (
+                        wantedType == '' || (
+                            'displayMethod' in field && (
+                            (wantedType == 'list')
+                            ? isList(field.displayMethod)
+                            : isEntry(field.displayMethod)
+                        ))
+                    )
+                }
+                const isEnum = (field) => {
+                    return isList(field.type) || isEntry(field.type) || isEnum2Level(field)
+                }
                 prepared.forEach((field)=> {
-                    if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                        .includes(field.type) && field.linkedObjectName == parentField.linkedObjectId){
+                    const isEnumList = isList(field.type) || isEnum2Level(field,'list')
+                    if ((isEnum(field) && field.linkedObjectName == parentField.linkedObjectId) ||
+                        (isEnumList && parentField.linkedObjectId.slice(0,field.linkedObjectName.length) == field.linkedObjectName)){
                         form.parentsFieldsPropertyNames[fieldName][field.propertyname] = field
                     }
                 });
