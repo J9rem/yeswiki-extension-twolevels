@@ -11,6 +11,7 @@
     data-field-parent-fieldname="{{field.parentFieldName}}"
     data-field-name="{{field.name}}"
     data-field-associating-form-id="{{field.associatingFormId}}"
+    data-is-form="{{ (field.associatingFormId == field.linkedObjectName)|json_encode }}"
 ></span>
 
 {{ include_javascript("tools/twolevels/javascripts/enumlevel2Field/input.js") }}

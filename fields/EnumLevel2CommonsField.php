@@ -96,7 +96,13 @@ trait EnumLevel2CommonsTrait
             $values = $this->getFieldValues($this, $entry);
             $parentValues = $this->getFieldValues($parentField, $entry);
             if (!empty($this->getAssociatingFormId())) {
-                $availableValues = $this->getAvailableChildrenValuesFromLists($parentValues, $parentField->getLinkedObjectName());
+                $formId = $this->formatFormId($this->getLinkedObjectName());
+                $associatingFormId = $this->formatFormId($this->getAssociatingFormId());
+                if (!empty($formId) && $formId == $associatingFormId){
+                    $availableValues = $this->getAvailableChildrenValuesReverseFromForm($parentValues, $parentField->getLinkedObjectName());
+                } else {
+                    $availableValues = $this->getAvailableChildrenValuesFromLists($parentValues, $parentField->getLinkedObjectName());
+                }
             } else {
                 $childFields = $this->getChildrenFields($parentField, $this->getLinkedObjectName());
                 $availableValues = $this->getAvailableChildrenValues($parentValues, $childFields);
@@ -237,6 +243,40 @@ trait EnumLevel2CommonsTrait
                             }
                         }
                     }
+                }
+            }
+        }
+
+        return $availableValues;
+    }
+
+    protected function getAvailableChildrenValuesReverseFromForm(array $parentValues, string $parentLinkedObjectName): array
+    {
+        $availableValues = [];
+        $associatingFormId = $this->formatFormId($this->getAssociatingFormId());
+        if (!empty($associatingFormId)) {
+            $formManager = $this->getService(FormManager::class);
+            $form = $formManager->getOne($associatingFormId);
+            $fields = [];
+            foreach ($form['prepared'] as $field) {
+                if ($field instanceof EnumField && $field->getLinkedObjectName() == $parentLinkedObjectName && $field->getPropertyName() !== "") {
+                    $fields[] = $field;
+                    break;
+                }
+            }
+            if (!empty($fields)) {
+                $childField = $fields[0];
+                $entryManager = $this->getService(EntryManager::class);
+                $entries = $entryManager->search([
+                    'formsIds' => [$associatingFormId],
+                    'queries' => [
+                        $childField->getPropertyName() => implode(',', $parentValues)
+                    ]
+                ]);
+                if (!empty($entries)) {
+                    $availableValues= array_map(function($entry){
+                        return $entry['id_fiche'];
+                    },$entries);
                 }
             }
         }

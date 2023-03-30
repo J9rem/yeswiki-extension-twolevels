@@ -128,6 +128,41 @@ const enumlevel2Helper = {
             }
             return form
         },
+        appendReverseChildrenFieldsPropertyNamestoParentForm(form,parentField){
+            if (!('reverseChildrenFieldsPropertyNames' in form)){
+                form.reverseChildrenFieldsPropertyNames = {}
+            }
+            parentField.childrenIds.forEach((childId)=>{
+                if (!(childId in form.reverseChildrenFieldsPropertyNames)){
+                    form.reverseChildrenFieldsPropertyNames[childId] = {'id_fiche':'id_fiche'}
+                }
+            })
+            return form
+        },
+        appendReverseParentsFieldsPropertyNamestoParentForm(form,fieldName,parentField){
+            if (!('reverseParentsFieldsPropertyNames' in form)){
+                form.reverseParentsFieldsPropertyNames = {}
+            }
+            const childId = parentField.linkedObjectId
+            if (childId.length > 0 && !(fieldName in form.reverseParentsFieldsPropertyNames)){
+                form.reverseParentsFieldsPropertyNames[fieldName] = {}
+                let prepared = (Array.isArray(form.prepared))
+                    ? form.prepared
+                    : (
+                        typeof form.prepared == "object"
+                        ? Object.values(form.prepared)
+                        : []
+                    )
+
+                prepared.forEach((field)=> {
+                    if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
+                        .includes(field.type) && field.linkedObjectName == childId){
+                        form.reverseParentsFieldsPropertyNames[fieldName][field.propertyname] = field
+                    }
+                })
+            }
+            return form
+        },
         appendToArrayIfInEntry(entry,propName,currentArray){
             if (propName in entry && 
                     typeof entry[propName] == "string" && 
@@ -261,7 +296,7 @@ const enumlevel2Helper = {
                 parentField.childrenIds.forEach((id)=>{
                     let associatingFormId = this.levels2[id].associatingFormId
                     if (associatingFormId.length > 0){
-                        formsIds.push(associatingFormId)
+                        formsIds.push({id:associatingFormId,isForm:this.levels2[id].isForm})
                     }
                 })
                 
@@ -434,14 +469,24 @@ const enumlevel2Helper = {
                 return [secondLevelValues,parentForm]
             })
         },
-        async getAvailableSecondLevelsValuesForLists(associatingForm,fieldName,parentField,values){
-            associatingForm = this.appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField)
-            associatingForm = this.appendParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
-            let correspondances = await this.getCorrespondances(associatingForm,fieldName,parentField)
+        async getAvailableSecondLevelsValuesForLists(associatingForm,fieldName,parentField,values,reverseMode = false){
+            let correspondances = null
+            let propNames = {}
+            if (!reverseMode){
+                associatingForm = this.appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField)
+                associatingForm = this.appendParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
+                correspondances = await this.getCorrespondances(associatingForm,fieldName,parentField)
+                propNames = associatingForm.childrenFieldsPropertyNames
+            } else {
+                associatingForm = this.appendReverseParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
+                associatingForm = this.appendReverseChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField)
+                correspondances = await this.getCorrespondancesReverse(associatingForm,fieldName,parentField)
+                propNames = associatingForm.reverseChildrenFieldsPropertyNames
+            }
             let secondLevelValues = {}
             parentField.childrenIds.forEach((childId)=>{
                 secondLevelValues[childId] = []
-                if (childId in associatingForm.childrenFieldsPropertyNames){
+                if (childId in propNames){
                     values.forEach((parentValue)=>{
                         if (parentValue in correspondances && childId in correspondances[parentValue]){
                             secondLevelValues[childId] = [
@@ -496,6 +541,55 @@ const enumlevel2Helper = {
                                 for (const childId in associatingForm.childrenFieldsPropertyNames) {
                                     tmp.children[childId] = []
                                     for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
+                                        tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId])
+                                    }
+                                }
+                                tmp.parents.forEach((p)=>{
+                                    if (!(p in correspondances)){
+                                        correspondances[p] = {}
+                                    }
+                                    for (const childId in tmp.children) {
+                                        if (!(childId in correspondances[p])){
+                                            correspondances[p][childId] = []
+                                        }
+                                        tmp.children[childId].forEach((val)=>{
+                                            if (!correspondances[p][childId].includes(val)){
+                                                correspondances[p][childId] = [...correspondances[p][childId],val]
+                                            }
+                                        })
+                                    }
+                                    
+                                })
+                            })
+                            this.correspondances[associatingForm.bn_id_nature] = correspondances
+                            return correspondances
+                        })
+                    )
+            }
+        },
+        async getCorrespondancesReverse(associatingForm,fieldName){
+            if (associatingForm.bn_id_nature in this.correspondances){
+                return this.correspondances[associatingForm.bn_id_nature]
+            } else {
+                return await this.getAllEntries(associatingForm.bn_id_nature)
+                    .then((entries)=>this.registerCorrespondances(associatingForm.bn_id_nature,async ()=>{
+                            let entries = this.allEntriesCache[associatingForm.bn_id_nature] || []
+                            if (entries.length == 0){
+                                console.log(`entries should not be empty`)
+                            }
+                            let correspondances = {}
+                            entries.forEach((e)=>{
+                                let tmp = {
+                                    parents: [],
+                                    children: {}
+                                }
+                                for (const propertyName in associatingForm.reverseParentsFieldsPropertyNames[fieldName]) {
+                                    tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents)
+                                }
+                                
+                                for (const childId in associatingForm.reverseChildrenFieldsPropertyNames) {
+                                    tmp.children[childId] = []
+                                    for (const propertyName in associatingForm.reverseChildrenFieldsPropertyNames[childId]) {
                                         tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId])
                                     }
                                 }
@@ -660,8 +754,9 @@ const enumlevel2Helper = {
             let parentFieldName = element.dataset.fieldParentFieldname || ''
             let fieldName = element.dataset.fieldName || ''
             let associatingFormId = element.dataset.fieldAssociatingFormId || ''
+            let isForm = element.dataset.isForm || false
             if (propertyName.length > 0 && parentFieldName.length > 0){
-                this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId}
+                this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId,isForm}
                 let field = this.findField(propertyName)
                 if (field && typeof field == "object"){
                     this.levels2[propertyName].type = field.type
@@ -671,10 +766,9 @@ const enumlevel2Helper = {
                     if (parentFieldName in this.parents){
                         this.levels2[propertyName].parentId = parentFieldName
                         this.parents[parentFieldName].childrenIds = [...this.parents[parentFieldName].childrenIds,propertyName]
-                        this.parents[parentFieldName].isForm = !(
-                                !this.parents[parentFieldName].isForm || 
-                                (associatingFormId.length == 0)
-                            )
+                        this.parents[parentFieldName].isForm = ('isForm' in this.parents[parentFieldName])
+                            ? this.parents[parentFieldName].isForm
+                            : (associatingFormId.length == 0)
                     } else {
                         field = this.findField(parentFieldName,associatingFormId)
                         if (field && typeof field == "object"){
@@ -930,11 +1024,12 @@ const enumlevel2Helper = {
                             promisesLabel.push(`getting parentEntries for ${JSON.stringify(values)}`)
                         } else {
                             let formsIds = this.extractListOfAssociatingForms(fieldName,parentField)
-                            for (let formId of formsIds){
+                            for (let formIdData of formsIds){
+                                const formId = formIdData.id
                                 promises.push(
                                     new Promise((resolve,reject)=>{
                                         this.getForm(formId).then((form)=>{
-                                            this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values).then((secondLevelValues)=>{
+                                            this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData.isForm).then((secondLevelValues)=>{
                                                 this.updateSecondLevel(secondLevelValues, isInit)
                                                 resolve(form)
                                             })
