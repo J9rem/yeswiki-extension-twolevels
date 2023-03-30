@@ -770,7 +770,7 @@ const enumlevel2Helper = {
                 })
             }
         },
-        updateCheckox(field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput){
+        updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput){
             let visiblesOptions = []
             this.blockShow(field,'checkbox')
             let nodesForWhatDispatchChangeEvent = nodesForWhatDispatchChangeEventInput
@@ -802,6 +802,9 @@ const enumlevel2Helper = {
             })
             if (visiblesOptions.length == 0){
                 this.blockHide(field,'checkbox')
+            } else if (!isInit && visiblesOptions.length == 1 && !visiblesOptions[0].checked){
+                visiblesOptions[0].dispatchEvent(new Event("click"))
+                visiblesOptions[0].checked = true
             }
             return nodesForWhatDispatchChangeEvent
         },
@@ -887,7 +890,7 @@ const enumlevel2Helper = {
                 field.node.dataset.backupSelectedValues = JSON.stringify(backupSelectedValues)
             }
         },
-        async updateChildren(parentsFields){
+        async updateChildren(parentsFields, isInit = false){
             if (typeof parentsFields != "object"){
                 throw "'parentsFields' should be an object with format 'fieldName' => field"
             } else {
@@ -902,7 +905,7 @@ const enumlevel2Helper = {
                                 new Promise((resolve,reject)=>{
                                     this.getForm(parentField.linkedObjectId).then((form)=>{
                                         this.getAvailableSecondLevelsValues(form,parentField,values).then(([secondLevelValues,formInt])=>{
-                                            this.updateSecondLevel(secondLevelValues)
+                                            this.updateSecondLevel(secondLevelValues,isInit)
                                             resolve(formInt)
                                         })
                                         .catch((e)=>reject(e))
@@ -932,7 +935,7 @@ const enumlevel2Helper = {
                                     new Promise((resolve,reject)=>{
                                         this.getForm(formId).then((form)=>{
                                             this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values).then((secondLevelValues)=>{
-                                                this.updateSecondLevel(secondLevelValues)
+                                                this.updateSecondLevel(secondLevelValues, isInit)
                                                 resolve(form)
                                             })
                                             .catch((e)=>reject(e))
@@ -1038,14 +1041,14 @@ const enumlevel2Helper = {
                 this.blockHide(field,'radio')
             }
         },
-        updateSecondLevel(secondLevelValues){
+        updateSecondLevel(secondLevelValues, isInit = false){
             let nodesForWhatDispatchChangeEvent = []
             for (const childId in secondLevelValues) {
                 let field = this.levels2[childId]
                 switch (field.type) {
                     case "checkbox":
                     case "checkboxdraganddrop":
-                        nodesForWhatDispatchChangeEvent = this.updateCheckox(field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent)
+                        nodesForWhatDispatchChangeEvent = this.updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent)
                         return
                     case "checkboxtag":
                         this.updateCheckoxTag(field,secondLevelValues,childId)
@@ -1054,7 +1057,7 @@ const enumlevel2Helper = {
                         this.updateRadio(field,secondLevelValues,childId)
                         return
                     case "select":
-                        this.updateSelect(field,secondLevelValues,childId)
+                        this.updateSelect(isInit,field,secondLevelValues,childId)
                     default:
                         break
                 }
@@ -1062,7 +1065,7 @@ const enumlevel2Helper = {
             let event = new Event("change")
             nodesForWhatDispatchChangeEvent.forEach((node)=>{node.dispatchEvent(event)})
         },
-        updateSelect(field,secondLevelValues,childId){
+        updateSelect(isInit,field,secondLevelValues,childId){
             let selectOptionsToSelect = []
             this.blockShow(field,'select')
             $(field.node).closest('.control-group.select').show()
@@ -1071,7 +1074,7 @@ const enumlevel2Helper = {
             options.forEach((node)=>{
                 let currentValue = node.value
                 let baseNode = node
-                if (secondLevelValues[childId].includes(currentValue)){
+                if (currentValue.length == '' || secondLevelValues[childId].includes(currentValue)){
                     visiblesOptions.push(node)
                     if (baseNode.classList.contains('enumlevel2-backup')){
                         let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
@@ -1087,14 +1090,15 @@ const enumlevel2Helper = {
                     baseNode.classList.add('enumlevel2-backup')
                 }
             })
-            if (selectOptionsToSelect.length > 0){
+            let notEmptyOptions = visiblesOptions.filter((e)=>e.value != '')
+            if (!isInit && notEmptyOptions.length == 1) {
+                field.node.value = notEmptyOptions[0].value
+            } else if (selectOptionsToSelect.length > 0){
                 field.node.value = selectOptionsToSelect[0].value
-            } else if (visiblesOptions.length == 1) {
-                field.node.value = visiblesOptions[0].value
             } else {
                 field.node.value = ""
             }
-            if (visiblesOptions.length == 0){
+            if (notEmptyOptions.length == 0){
                 this.blockHide(field,'select')
             }
         },
@@ -1105,7 +1109,7 @@ const enumlevel2Helper = {
             }
             this.registerTriggersOnParents()
             // init
-            return await this.updateChildren(this.parents)
+            return await this.updateChildren(this.parents, true)
         }
     },
     initData(){
