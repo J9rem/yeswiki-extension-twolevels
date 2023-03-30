@@ -734,6 +734,117 @@ const enumlevel2Helper = {
                 })
             }
         },
+        updateCheckox(field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput){
+            let nodesForWhatDispatchChangeEvent = nodesForWhatDispatchChangeEventInput
+            field.nodes.forEach((node)=>{
+                let currentValue = this.extractInputCheckboxValue(node)
+                let baseNode = (field.type == "checkbox") ? node.parentNode.parentNode : node.parentNode
+                if (field.type == "checkboxdraganddrop"){
+                    baseNode.classList.add('enumlevel2-baseNode')
+                }
+                if (secondLevelValues[childId].includes(currentValue)){
+                    if (baseNode.classList.contains('enumlevel2-backup')){
+                        let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
+                        nodesForWhatDispatchChangeEvent.push(node)
+                        baseNode.classList.remove('enumlevel2-backup')
+                        if (node.checked != oldValue){
+                            node.dispatchEvent(new Event("click"))
+                            node.checked = oldValue
+                        }
+                    }
+                } else if (!baseNode.classList.contains('enumlevel2-backup')) {
+                    node.dataset.wasChecked = node.checked
+                    baseNode.classList.add('enumlevel2-backup')
+                    if (node.checked){
+                        node.dispatchEvent(new Event("click"))
+                        node.checked = false
+                    }
+                }
+            })
+            return nodesForWhatDispatchChangeEvent
+        },
+        updateCheckoxTag(field,secondLevelValues,childId){
+            let $node = $(field.node)
+            let tagsInput = $node.tagsinput()
+            if (tagsInput && Array.isArray(tagsInput) && tagsInput.length > 0){
+                tagsInput = tagsInput[0]
+                let tagsInputCurrentOptions = tagsInput.options
+                let currentAvailableValues = (
+                    tagsInputCurrentOptions.typeahead && 
+                    typeof tagsInputCurrentOptions.typeahead.source == "function"
+                ) ? tagsInputCurrentOptions.typeahead.source() : []
+                if (!Array.isArray(currentAvailableValues)){
+                    currentAvailableValues = []
+                }
+                let defaultAvailableValues = currentAvailableValues
+                if (!('defaultAvailableValues' in field.node.dataset)){
+                    field.node.dataset.defaultAvailableValues = JSON.stringify(defaultAvailableValues)
+                } else {
+                    defaultAvailableValues = JSON.parse(field.node.dataset.defaultAvailableValues)
+                }
+                let selectedValues = $node.val()
+                selectedValues = (selectedValues == "") ? [] : selectedValues.split(",")
+                selectedValues.map((val)=>{String(val)})
+                let backupSelectedValues = 
+                    'backupSelectedValues' in field.node.dataset
+                    ? JSON.parse(field.node.dataset.backupSelectedValues)
+                    : []
+                let newValuesIds = []
+                let newValues = {}
+                for (let key in defaultAvailableValues){
+                    let currentValue = String(defaultAvailableValues[key].id)
+                    if (secondLevelValues[childId].includes(currentValue)){
+                        if (!newValuesIds.includes(currentValue)){
+                            newValuesIds.push(currentValue)
+                            newValues[currentValue] = defaultAvailableValues[key]
+                        }
+                        if (backupSelectedValues.includes(currentValue)){
+                            backupSelectedValues = backupSelectedValues.filter((val)=>val!=currentValue)
+                            if (!selectedValues.includes(currentValue)){
+                                selectedValues.push(currentValue)
+                            }
+                        }
+                    } else if (selectedValues.includes(currentValue)){
+                        selectedValues = selectedValues.filter((val)=>val!=currentValue)
+                        if (!backupSelectedValues.includes(currentValue)){
+                            backupSelectedValues.push(currentValue)
+                        }
+                    }
+                }
+                // reset tagsinput
+                $node.tagsinput('destroy')
+                let newoptions = {
+                    itemValue: 'id',
+                    itemText: 'title',
+                    typeahead: {
+                        afterSelect(val) { $node.tagsinput('input').val(""); },
+                        source: Object.values(newValues),
+                        autoSelect: false,
+                    },
+                    freeInput: false,
+                    confirmKeys: [13, 186, 188]
+                }
+                if (childId.match(/^radio.*/)){
+                    newoptions.maxTags = 1
+                    if (selectedValues.length > 0){
+                        let firstValue = selectedValues.shift()
+                        selectedValues.forEach((val)=>{
+                            if (!backupSelectedValues.includes(val)){
+                                backupSelectedValues.push(val)
+                            }
+                        })
+                        selectedValues = [firstValue]
+                    }
+                }
+                $node.tagsinput(newoptions)
+                selectedValues.forEach((val)=>{
+                    if (val in newValues){
+                        $node.tagsinput('add',newValues[val])
+                    }
+                })
+                field.node.dataset.backupSelectedValues = JSON.stringify(backupSelectedValues)
+            }
+        },
         async updateChildren(parentsFields){
             if (typeof parentsFields != "object"){
                 throw "'parentsFields' should be an object with format 'fieldName' => field"
@@ -816,6 +927,69 @@ const enumlevel2Helper = {
                 })
             }
         },
+        updateRadio(field,secondLevelValues,childId){
+            let radioBtnToCheck = []
+            let radioBtnToCheckBackup = []
+            field.nodes.forEach((node)=>{
+                let currentValue = node.value
+                let baseNode = node.parentNode.parentNode
+                if (secondLevelValues[childId].includes(currentValue)){
+                    let oldValue = ('wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))) ||
+                        (!('wasChecked' in node.dataset) && node.dataset.default)
+                    if (baseNode.classList.contains('enumlevel2-backup')){
+                        baseNode.classList.remove('enumlevel2-backup')
+                        if (oldValue){
+                            radioBtnToCheck.push(node)
+                        }
+                    } else if (node.checked){
+                        radioBtnToCheck.push(node)
+                    } else if (oldValue){
+                        radioBtnToCheckBackup.push(node)
+                    }
+                } else if (!baseNode.classList.contains('enumlevel2-backup')) {
+                    node.dataset.wasChecked = node.checked
+                    baseNode.classList.add('enumlevel2-backup')
+                    if (node.checked){
+                        node.checked = false
+                        node.dispatchEvent(new Event("click"))
+                    }
+                } else if (node.checked){
+                    node.checked = false
+                    node.dispatchEvent(new Event("click"))
+                }
+            })
+            if (radioBtnToCheck.length > 0){
+                radioBtnToCheck.forEach((node,index)=>{
+                    if (index == 0){
+                        if (!node.checked){
+                            node.dispatchEvent(new Event("click"))
+                            node.checked = true
+                        }
+                    } else if (node.checked){
+                        node.checked = false
+                        node.dispatchEvent(new Event("click"))
+                    }
+                })
+                radioBtnToCheckBackup.forEach((node,index)=>{
+                    if (node.checked){
+                        node.checked = false
+                        node.dispatchEvent(new Event("click"))
+                    }
+                })
+            } else {
+                radioBtnToCheckBackup.forEach((node,index)=>{
+                    if (index == 0){
+                        if (!node.checked){
+                            node.dispatchEvent(new Event("click"))
+                            node.checked = true
+                        }
+                    } else if (node.checked){
+                        node.checked = false
+                        node.dispatchEvent(new Event("click"))
+                    }
+                })
+            }
+        },
         updateSecondLevel(secondLevelValues){
             let nodesForWhatDispatchChangeEvent = []
             for (const childId in secondLevelValues) {
@@ -823,213 +997,53 @@ const enumlevel2Helper = {
                 switch (field.type) {
                     case "checkbox":
                     case "checkboxdraganddrop":
-                        field.nodes.forEach((node)=>{
-                            let currentValue = this.extractInputCheckboxValue(node)
-                            let baseNode = (field.type == "checkbox") ? node.parentNode.parentNode : node.parentNode
-                            if (field.type == "checkboxdraganddrop"){
-                                baseNode.classList.add('enumlevel2-baseNode')
-                            }
-                            if (secondLevelValues[childId].includes(currentValue)){
-                                if (baseNode.classList.contains('enumlevel2-backup')){
-                                    let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
-                                    nodesForWhatDispatchChangeEvent.push(node)
-                                    baseNode.classList.remove('enumlevel2-backup')
-                                    if (node.checked != oldValue){
-                                        node.dispatchEvent(new Event("click"))
-                                        node.checked = oldValue
-                                    }
-                                }
-                            } else if (!baseNode.classList.contains('enumlevel2-backup')) {
-                                node.dataset.wasChecked = node.checked
-                                baseNode.classList.add('enumlevel2-backup')
-                                if (node.checked){
-                                    node.dispatchEvent(new Event("click"))
-                                    node.checked = false
-                                }
-                            }
-                        })
+                        nodesForWhatDispatchChangeEvent = this.updateCheckox(field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent)
                         return
                     case "checkboxtag":
-                        let $node = $(field.node)
-                        let tagsInput = $node.tagsinput()
-                        if (tagsInput && Array.isArray(tagsInput) && tagsInput.length > 0){
-                            tagsInput = tagsInput[0]
-                            let tagsInputCurrentOptions = tagsInput.options
-                            let currentAvailableValues = (
-                                tagsInputCurrentOptions.typeahead && 
-                                typeof tagsInputCurrentOptions.typeahead.source == "function"
-                            ) ? tagsInputCurrentOptions.typeahead.source() : []
-                            if (!Array.isArray(currentAvailableValues)){
-                                currentAvailableValues = []
-                            }
-                            let defaultAvailableValues = currentAvailableValues
-                            if (!('defaultAvailableValues' in field.node.dataset)){
-                                field.node.dataset.defaultAvailableValues = JSON.stringify(defaultAvailableValues)
-                            } else {
-                                defaultAvailableValues = JSON.parse(field.node.dataset.defaultAvailableValues)
-                            }
-                            let selectedValues = $node.val()
-                            selectedValues = (selectedValues == "") ? [] : selectedValues.split(",")
-                            selectedValues.map((val)=>{String(val)})
-                            let backupSelectedValues = 
-                                'backupSelectedValues' in field.node.dataset
-                                ? JSON.parse(field.node.dataset.backupSelectedValues)
-                                : []
-                            let newValuesIds = []
-                            let newValues = {}
-                            for (let key in defaultAvailableValues){
-                                let currentValue = String(defaultAvailableValues[key].id)
-                                if (secondLevelValues[childId].includes(currentValue)){
-                                    if (!newValuesIds.includes(currentValue)){
-                                        newValuesIds.push(currentValue)
-                                        newValues[currentValue] = defaultAvailableValues[key]
-                                    }
-                                    if (backupSelectedValues.includes(currentValue)){
-                                        backupSelectedValues = backupSelectedValues.filter((val)=>val!=currentValue)
-                                        if (!selectedValues.includes(currentValue)){
-                                            selectedValues.push(currentValue)
-                                        }
-                                    }
-                                } else if (selectedValues.includes(currentValue)){
-                                    selectedValues = selectedValues.filter((val)=>val!=currentValue)
-                                    if (!backupSelectedValues.includes(currentValue)){
-                                        backupSelectedValues.push(currentValue)
-                                    }
-                                }
-                            }
-                            // reset tagsinput
-                            $node.tagsinput('destroy')
-                            let newoptions = {
-                                itemValue: 'id',
-                                itemText: 'title',
-                                typeahead: {
-                                    afterSelect(val) { $node.tagsinput('input').val(""); },
-                                    source: Object.values(newValues),
-                                    autoSelect: false,
-                                },
-                                freeInput: false,
-                                confirmKeys: [13, 186, 188]
-                            }
-                            if (childId.match(/^radio.*/)){
-                                newoptions.maxTags = 1
-                                if (selectedValues.length > 0){
-                                    let firstValue = selectedValues.shift()
-                                    selectedValues.forEach((val)=>{
-                                        if (!backupSelectedValues.includes(val)){
-                                            backupSelectedValues.push(val)
-                                        }
-                                    })
-                                    selectedValues = [firstValue]
-                                }
-                            }
-                            $node.tagsinput(newoptions)
-                            selectedValues.forEach((val)=>{
-                                if (val in newValues){
-                                    $node.tagsinput('add',newValues[val])
-                                }
-                            })
-                            field.node.dataset.backupSelectedValues = JSON.stringify(backupSelectedValues)
-                        }
+                        this.updateCheckoxTag(field,secondLevelValues,childId)
                         return 
                     case "radio":
-                        let radioBtnToCheck = []
-                        let radioBtnToCheckBackup = []
-                        field.nodes.forEach((node)=>{
-                            let currentValue = node.value
-                            let baseNode = node.parentNode.parentNode
-                            if (secondLevelValues[childId].includes(currentValue)){
-                                let oldValue = ('wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))) ||
-                                    (!('wasChecked' in node.dataset) && node.dataset.default)
-                                if (baseNode.classList.contains('enumlevel2-backup')){
-                                    baseNode.classList.remove('enumlevel2-backup')
-                                    if (oldValue){
-                                        radioBtnToCheck.push(node)
-                                    }
-                                } else if (node.checked){
-                                    radioBtnToCheck.push(node)
-                                } else if (oldValue){
-                                    radioBtnToCheckBackup.push(node)
-                                }
-                            } else if (!baseNode.classList.contains('enumlevel2-backup')) {
-                                node.dataset.wasChecked = node.checked
-                                baseNode.classList.add('enumlevel2-backup')
-                                if (node.checked){
-                                    node.checked = false
-                                    node.dispatchEvent(new Event("click"))
-                                }
-                            } else if (node.checked){
-                                node.checked = false
-                                node.dispatchEvent(new Event("click"))
-                            }
-                        })
-                        if (radioBtnToCheck.length > 0){
-                            radioBtnToCheck.forEach((node,index)=>{
-                                if (index == 0){
-                                    if (!node.checked){
-                                        node.dispatchEvent(new Event("click"))
-                                        node.checked = true
-                                    }
-                                } else if (node.checked){
-                                    node.checked = false
-                                    node.dispatchEvent(new Event("click"))
-                                }
-                            })
-                            radioBtnToCheckBackup.forEach((node,index)=>{
-                                if (node.checked){
-                                    node.checked = false
-                                    node.dispatchEvent(new Event("click"))
-                                }
-                            })
-                        } else {
-                            radioBtnToCheckBackup.forEach((node,index)=>{
-                                if (index == 0){
-                                    if (!node.checked){
-                                        node.dispatchEvent(new Event("click"))
-                                        node.checked = true
-                                    }
-                                } else if (node.checked){
-                                    node.checked = false
-                                    node.dispatchEvent(new Event("click"))
-                                }
-                            })
-                        }
+                        this.updateRadio(field,secondLevelValues,childId)
                         return
                     case "select":
-                        let selectOptionsToSelect = []
-                        let visiblesOptions = []
-                        let options = field.node.querySelectorAll('option') || []
-                        options.forEach((node)=>{
-                            let currentValue = node.value
-                            let baseNode = node
-                            if (secondLevelValues[childId].includes(currentValue)){
-                                visiblesOptions.push(node)
-                                if (baseNode.classList.contains('enumlevel2-backup')){
-                                    let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
-                                    baseNode.classList.remove('enumlevel2-backup')
-                                    if (oldValue){
-                                        selectOptionsToSelect.push(node)
-                                    }
-                                } else if (currentValue == field.node.value){
-                                    selectOptionsToSelect.push(node)
-                                }
-                            } else if (!baseNode.classList.contains('enumlevel2-backup')) {
-                                node.dataset.wasChecked = (currentValue == field.node.value)
-                                baseNode.classList.add('enumlevel2-backup')
-                            }
-                        })
-                        if (selectOptionsToSelect.length > 0){
-                            field.node.value = selectOptionsToSelect[0].value
-                        } else if (visiblesOptions.length == 1) {
-                            field.node.value = visiblesOptions[0].value
-                        } else {
-                            field.node.value = ""
-                        }
+                        this.updateSelect(field,secondLevelValues,childId)
                     default:
                         break
                 }
             }
             let event = new Event("change")
             nodesForWhatDispatchChangeEvent.forEach((node)=>{node.dispatchEvent(event)})
+        },
+        updateSelect(field,secondLevelValues,childId){
+            let selectOptionsToSelect = []
+            let visiblesOptions = []
+            let options = field.node.querySelectorAll('option') || []
+            options.forEach((node)=>{
+                let currentValue = node.value
+                let baseNode = node
+                if (secondLevelValues[childId].includes(currentValue)){
+                    visiblesOptions.push(node)
+                    if (baseNode.classList.contains('enumlevel2-backup')){
+                        let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
+                        baseNode.classList.remove('enumlevel2-backup')
+                        if (oldValue){
+                            selectOptionsToSelect.push(node)
+                        }
+                    } else if (currentValue == field.node.value){
+                        selectOptionsToSelect.push(node)
+                    }
+                } else if (!baseNode.classList.contains('enumlevel2-backup')) {
+                    node.dataset.wasChecked = (currentValue == field.node.value)
+                    baseNode.classList.add('enumlevel2-backup')
+                }
+            })
+            if (selectOptionsToSelect.length > 0){
+                field.node.value = selectOptionsToSelect[0].value
+            } else if (visiblesOptions.length == 1) {
+                field.node.value = visiblesOptions[0].value
+            } else {
+                field.node.value = ""
+            }
         },
         async init(){
             let elements = document.querySelectorAll(".enum-two-level-data")
