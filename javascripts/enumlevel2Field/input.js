@@ -1016,6 +1016,13 @@ const enumlevel2Helper = {
         },
         updateSelect(field,secondLevelValues,childId){
             let selectOptionsToSelect = []
+            $(field.node).closest('.control-group.select').each(function(){
+                if ($(this).hasClass('twoleves-select-hidden')){
+                    $(this).removeClass('twoleves-select-hidden')
+                    $(this).show()
+                }
+            })
+            $(field.node).closest('.control-group.select').show()
             let visiblesOptions = []
             let options = field.node.querySelectorAll('option') || []
             options.forEach((node)=>{
@@ -1043,6 +1050,12 @@ const enumlevel2Helper = {
                 field.node.value = visiblesOptions[0].value
             } else {
                 field.node.value = ""
+            }
+            if (visiblesOptions.length == 0){
+                $(field.node).closest('.control-group.select').each(function(){
+                    $(this).addClass('twoleves-select-hidden')
+                    $(this).hide()
+                })
             }
         },
         async init(){
