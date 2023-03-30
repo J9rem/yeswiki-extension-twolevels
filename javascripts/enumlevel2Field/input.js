@@ -128,7 +128,7 @@ const enumlevel2Helper = {
             }
             return form
         },
-        appendToArrayIfInEntry: function (entry,propName,currentArray){
+        appendToArrayIfInEntry(entry,propName,currentArray){
             if (propName in entry && 
                     typeof entry[propName] == "string" && 
                     entry[propName].length > 0){ 
@@ -140,22 +140,48 @@ const enumlevel2Helper = {
             }
             return currentArray
         },
-        assertIsRegularFormId: function (formId){
+        assertIsRegularFormId(formId){
             if (typeof formId != "string" || formId.length == 0 || Number(formId) < 1){
                 throw `'formId' as parameter as 'getForm' should be a not empty string representing a postive integer`
             }
         },
-        assertIsRegularEntryId: function (entryId){
+        assertIsRegularEntryId(entryId){
             if (typeof entryId != "string" || entryId.length == 0 || String(Number(entryId)) === entryId){
                 throw `'entryId' as parameter as 'assertIsRegularEntryId' should be a not empty string and not representing a form number`
             }
         },
-        cleanEvent: function (eventName){
+        blockHide(field,className){
+            const parentBlock = this.closest((className == 'radio')? field.nodes[0]: field.node,['control-group',className])
+            if (!(parentBlock === null)){
+                parentBlock.classList.add('twolevels-select-hidden')
+                parentBlock.style.display = 'none'
+            }
+        },
+        blockShow(field,className){
+            const parentBlock = this.closest((className == 'radio')? field.nodes[0]: field.node,['control-group',className])
+            if (!(parentBlock === null)){
+                if (parentBlock.classList.contains('twolevels-select-hidden')){
+                    parentBlock.classList.remove('twolevels-select-hidden')
+                }
+                parentBlock.style.display = null
+            }
+        },
+        cleanEvent(eventName){
             this.eventsListeners[eventName] = this.eventsListeners[eventName].filter((eventData)=>{
                 return !eventData.once || !eventData.triggered
             })
         },
-        dispatchEvent: function (eventName, param = undefined){
+        closest(node,classNames){
+            let curParentNode = node
+            for (let index = 0; index < 100; index++) {
+                curParentNode = curParentNode.parentNode
+                if (classNames.length == 0 || classNames.every((e)=>curParentNode.classList.contains(e))){
+                    return curParentNode
+                }
+            }
+            return null
+        },
+        dispatchEvent(eventName, param = undefined){
             if (typeof eventName == "string"){
                 if (eventName in this.eventsListeners){
                     this.eventsListeners[eventName].forEach((eventData,idx)=>{
@@ -178,7 +204,7 @@ const enumlevel2Helper = {
             if (!match) return ""
             return match[0].slice(1,-1)
         },
-        extractLinkedObjectIdForCheckox: function (node, mode = "group-checkbox-", type = "checkbox"){
+        extractLinkedObjectIdForCheckox(node, mode = "group-checkbox-", type = "checkbox"){
             let linkedObjectId = ""
             let fieldPropertyName = ""
             node.classList.forEach((className)=>{
@@ -201,7 +227,7 @@ const enumlevel2Helper = {
             }
             return linkedObjectId
         },
-        extractLinkedObjectIdForRadioOrListe: function (name, type){
+        extractLinkedObjectIdForRadioOrListe(name, type){
             let linkedObjectId = ""
             if (name.length > 0){
                 let fieldName = "[A-Za-z0-9_\\-]*"
@@ -216,7 +242,7 @@ const enumlevel2Helper = {
             }
             return linkedObjectId
         },
-        extractListOfAssociatingForms: function (fieldName,parentField){
+        extractListOfAssociatingForms(fieldName,parentField){
             if (typeof fieldName != "string" || fieldName.length == 0){
                 throw `'fiedlName' param in function 'extractListOfAssociatingForms' should be a not empty string, got '${JSON.stringify(fieldName)}'`
             }
@@ -418,7 +444,7 @@ const enumlevel2Helper = {
             })
             return secondLevelValues
         },
-        getCheckboxTagValues: function (node){
+        getCheckboxTagValues(node){
             let values = []
             let value = node.value
             if (value.trim() != ""){
@@ -426,7 +452,7 @@ const enumlevel2Helper = {
             }
             return values
         },
-        getCheckboxValues: function (nodes){
+        getCheckboxValues(nodes){
             let values = []
             nodes.forEach((node)=>{
                 if (node.checked){
@@ -602,7 +628,7 @@ const enumlevel2Helper = {
             }
             return []
         },
-        getRadioValues: function (nodes){
+        getRadioValues(nodes){
             let values = []
             nodes.forEach((node)=>{
                 if (node.checked){
@@ -611,7 +637,7 @@ const enumlevel2Helper = {
             })
             return values
         },
-        getSelectValues: function (node){
+        getSelectValues(node){
             let values = []
             let value = node.value
             if (value.length > 0){
@@ -726,7 +752,7 @@ const enumlevel2Helper = {
             }
             return await this.updateChildren({[parentFieldName]:this.parents[parentFieldName]})
         },
-        setEventTriggered: function (eventName){
+        setEventTriggered(eventName){
             if (typeof eventName == "string" && (eventName in this.eventsListeners)){
                 this.eventsListeners[eventName] = this.eventsListeners[eventName].map((evenData)=>{
                     evenData.triggered = true
@@ -928,12 +954,15 @@ const enumlevel2Helper = {
             }
         },
         updateRadio(field,secondLevelValues,childId){
+            let visiblesOptions = []
+            this.blockShow(field,'radio')
             let radioBtnToCheck = []
             let radioBtnToCheckBackup = []
             field.nodes.forEach((node)=>{
                 let currentValue = node.value
                 let baseNode = node.parentNode.parentNode
                 if (secondLevelValues[childId].includes(currentValue)){
+                    visiblesOptions.push(node)
                     let oldValue = ('wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))) ||
                         (!('wasChecked' in node.dataset) && node.dataset.default)
                     if (baseNode.classList.contains('enumlevel2-backup')){
@@ -989,6 +1018,9 @@ const enumlevel2Helper = {
                     }
                 })
             }
+            if (visiblesOptions.length == 0){
+                this.blockHide(field,'radio')
+            }
         },
         updateSecondLevel(secondLevelValues){
             let nodesForWhatDispatchChangeEvent = []
@@ -1016,12 +1048,7 @@ const enumlevel2Helper = {
         },
         updateSelect(field,secondLevelValues,childId){
             let selectOptionsToSelect = []
-            $(field.node).closest('.control-group.select').each(function(){
-                if ($(this).hasClass('twoleves-select-hidden')){
-                    $(this).removeClass('twoleves-select-hidden')
-                    $(this).show()
-                }
-            })
+            this.blockShow(field,'select')
             $(field.node).closest('.control-group.select').show()
             let visiblesOptions = []
             let options = field.node.querySelectorAll('option') || []
@@ -1052,10 +1079,7 @@ const enumlevel2Helper = {
                 field.node.value = ""
             }
             if (visiblesOptions.length == 0){
-                $(field.node).closest('.control-group.select').each(function(){
-                    $(this).addClass('twoleves-select-hidden')
-                    $(this).hide()
-                })
+                this.blockHide(field,'select')
             }
         },
         async init(){
