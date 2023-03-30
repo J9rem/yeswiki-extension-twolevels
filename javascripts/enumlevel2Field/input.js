@@ -150,21 +150,31 @@ const enumlevel2Helper = {
                 throw `'entryId' as parameter as 'assertIsRegularEntryId' should be a not empty string and not representing a form number`
             }
         },
-        blockHide(field,className){
-            const parentBlock = this.closest((className == 'radio')? field.nodes[0]: field.node,['control-group',className])
+        blockCommon(field,className,callback){
+            const parentBlock = (className == 'select')
+                ? this.closest(field.node,['control-group',className])
+                : (
+                    field.nodes.length > 0
+                    ? this.closest(field.nodes[0],['control-group',className])
+                    : null
+                )
             if (!(parentBlock === null)){
-                parentBlock.classList.add('twolevels-select-hidden')
-                parentBlock.style.display = 'none'
+                callback(parentBlock)
             }
         },
+        blockHide(field,className){
+            this.blockCommon(field,className,(parentBlock)=>{
+                parentBlock.classList.add('twolevels-select-hidden')
+                parentBlock.style.display = 'none'
+            })
+        },
         blockShow(field,className){
-            const parentBlock = this.closest((className == 'radio')? field.nodes[0]: field.node,['control-group',className])
-            if (!(parentBlock === null)){
+            this.blockCommon(field,className,(parentBlock)=>{
                 if (parentBlock.classList.contains('twolevels-select-hidden')){
                     parentBlock.classList.remove('twolevels-select-hidden')
                 }
                 parentBlock.style.display = null
-            }
+            })
         },
         cleanEvent(eventName){
             this.eventsListeners[eventName] = this.eventsListeners[eventName].filter((eventData)=>{
@@ -761,6 +771,8 @@ const enumlevel2Helper = {
             }
         },
         updateCheckox(field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput){
+            let visiblesOptions = []
+            this.blockShow(field,'checkbox')
             let nodesForWhatDispatchChangeEvent = nodesForWhatDispatchChangeEventInput
             field.nodes.forEach((node)=>{
                 let currentValue = this.extractInputCheckboxValue(node)
@@ -769,6 +781,7 @@ const enumlevel2Helper = {
                     baseNode.classList.add('enumlevel2-baseNode')
                 }
                 if (secondLevelValues[childId].includes(currentValue)){
+                    visiblesOptions.push(node)
                     if (baseNode.classList.contains('enumlevel2-backup')){
                         let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
                         nodesForWhatDispatchChangeEvent.push(node)
@@ -787,6 +800,9 @@ const enumlevel2Helper = {
                     }
                 }
             })
+            if (visiblesOptions.length == 0){
+                this.blockHide(field,'checkbox')
+            }
             return nodesForWhatDispatchChangeEvent
         },
         updateCheckoxTag(field,secondLevelValues,childId){
