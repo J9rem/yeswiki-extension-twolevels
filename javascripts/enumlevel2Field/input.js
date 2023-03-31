@@ -296,7 +296,7 @@ const enumlevel2Helper = {
                 parentField.childrenIds.forEach((id)=>{
                     let associatingFormId = this.levels2[id].associatingFormId
                     if (associatingFormId.length > 0){
-                        formsIds.push({id:associatingFormId,isForm:this.levels2[id].isForm,wantedFieldId:this.levels2[id].associatingFieldId})
+                        formsIds.push({childId:id,id:associatingFormId,isForm:this.levels2[id].isForm,wantedFieldId:this.levels2[id].associatingFieldId})
                     }
                 })
                 
@@ -481,21 +481,23 @@ const enumlevel2Helper = {
             } else {
                 associatingForm = this.appendReverseParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
                 associatingForm = this.appendReverseChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField)
-                correspondances = await this.getCorrespondancesReverse(associatingForm,fieldName,formData.wantedFieldId)
+                correspondances = await this.getCorrespondancesReverse(associatingForm,fieldName,formData.wantedFieldId,formData.childId)
                 propNames = associatingForm.reverseChildrenFieldsPropertyNames
             }
             let secondLevelValues = {}
             parentField.childrenIds.forEach((childId)=>{
-                secondLevelValues[childId] = []
-                if (childId in propNames){
-                    values.forEach((parentValue)=>{
-                        if (parentValue in correspondances && childId in correspondances[parentValue]){
-                            secondLevelValues[childId] = [
-                                    ...secondLevelValues[childId],
-                                    ...correspondances[parentValue][childId]
-                                ]
-                        }
-                    })
+                if (formData.childId == childId){
+                    secondLevelValues[childId] = []
+                    if (childId in propNames){
+                        values.forEach((parentValue)=>{
+                            if (parentValue in correspondances && childId in correspondances[parentValue]){
+                                secondLevelValues[childId] = [
+                                        ...secondLevelValues[childId],
+                                        ...correspondances[parentValue][childId]
+                                    ]
+                            }
+                        })
+                    }
                 }
             })
             return secondLevelValues
@@ -568,7 +570,7 @@ const enumlevel2Helper = {
                     )
             }
         },
-        async getCorrespondancesReverse(associatingForm,fieldName,wantedFieldId = ''){
+        async getCorrespondancesReverse(associatingForm,fieldName,wantedFieldId = '',wantedchildId = ''){
             if (associatingForm.bn_id_nature in this.correspondances){
                 return this.correspondances[associatingForm.bn_id_nature]
             } else {
@@ -597,12 +599,16 @@ const enumlevel2Helper = {
                                     }
                                 }
                                 
-                                for (const childId in associatingForm.reverseChildrenFieldsPropertyNames) {
+                                let wantedIds = Object.keys(associatingForm.reverseChildrenFieldsPropertyNames)
+                                if (typeof wantedchildId == 'string' && wantedchildId.length > 0 && wantedIds.includes(wantedchildId)){
+                                    wantedIds = [wantedchildId]
+                                }
+                                wantedIds.forEach((childId)=>{
                                     tmp.children[childId] = []
                                     for (const propertyName in associatingForm.reverseChildrenFieldsPropertyNames[childId]) {
                                         tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId])
                                     }
-                                }
+                                })
                                 tmp.parents.forEach((p)=>{
                                     if (!(p in correspondances)){
                                         correspondances[p] = {}
