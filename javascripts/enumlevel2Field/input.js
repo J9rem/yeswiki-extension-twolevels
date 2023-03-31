@@ -765,7 +765,7 @@ const enumlevel2Helper = {
             let fieldName = element.dataset.fieldName || ''
             let associatingFormId = element.dataset.fieldAssociatingFormId || ''
             let associatingFieldId = element.dataset.fieldAssociatingFieldId || ''
-            let isForm = element.dataset.isForm || false
+            let isForm = ('isForm' in element.dataset) ? [1,'1',true,'true'].includes(element.dataset.isForm) : false
             if (propertyName.length > 0 && parentFieldName.length > 0){
                 this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId,isForm,associatingFieldId}
                 let field = this.findField(propertyName)
