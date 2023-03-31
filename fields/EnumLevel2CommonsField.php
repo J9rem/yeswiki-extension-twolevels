@@ -49,6 +49,7 @@ class EnumLevel2CommonsField
 trait EnumLevel2CommonsTrait
 {
     protected $associatingFormId;
+    protected $associatingFieldId;
     protected $displayMethod ;
     protected $parentFieldName;
 
@@ -72,6 +73,14 @@ trait EnumLevel2CommonsTrait
             (preg_match("/^{$internalValues[parent::FIELD_TYPE]}(tags|dragndrop)$/", $this->displayMethod, $matches))
             ? $matches[1]
             : "";
+
+            
+        $this->associatingFieldId = $explodedParam[2] ?? '';
+        $this->associatingFieldId = (
+            !empty($this->associatingFieldId) && 
+            !empty($this->associatingFormId) && 
+            substr($internalValues[parent::FIELD_TYPE],-5) == 'fiche' // current is form
+        ) ? strval($this->associatingFieldId) : '';
 
         // construct with parent
         parent::__construct($internalValues, $services);
@@ -260,8 +269,11 @@ trait EnumLevel2CommonsTrait
             $fields = [];
             foreach ($form['prepared'] as $field) {
                 if ($field instanceof EnumField && $field->getLinkedObjectName() == $parentLinkedObjectName && $field->getPropertyName() !== "") {
+                    if (!empty($this->associatingFieldId) && $this->associatingFieldId == $field->getName()){
+                        $fields = [$field];
+                        break;
+                    }
                     $fields[] = $field;
-                    break;
                 }
             }
             if (!empty($fields)) {
@@ -296,6 +308,10 @@ trait EnumLevel2CommonsTrait
     {
         return $this->associatingFormId;
     }
+    public function getAssociatingFieldId()
+    {
+        return $this->associatingFieldId;
+    }
     // ====
 
     #[\ReturnTypeWillChange]
@@ -305,6 +321,7 @@ trait EnumLevel2CommonsTrait
         $data['displayMethod'] = $this->getdisplayMethod();
         $data['parentFieldName'] = $this->getParentFieldName();
         $data['associatingFormId'] = $this->getAssociatingFormId();
+        $data['associatingFieldId'] = $this->getAssociatingFieldId();
         return $data;
     }
 }

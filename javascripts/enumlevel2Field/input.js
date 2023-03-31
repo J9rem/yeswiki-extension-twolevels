@@ -296,7 +296,7 @@ const enumlevel2Helper = {
                 parentField.childrenIds.forEach((id)=>{
                     let associatingFormId = this.levels2[id].associatingFormId
                     if (associatingFormId.length > 0){
-                        formsIds.push({id:associatingFormId,isForm:this.levels2[id].isForm})
+                        formsIds.push({id:associatingFormId,isForm:this.levels2[id].isForm,wantedFieldId:this.levels2[id].associatingFieldId})
                     }
                 })
                 
@@ -469,7 +469,8 @@ const enumlevel2Helper = {
                 return [secondLevelValues,parentForm]
             })
         },
-        async getAvailableSecondLevelsValuesForLists(associatingForm,fieldName,parentField,values,reverseMode = false){
+        async getAvailableSecondLevelsValuesForLists(associatingForm,fieldName,parentField,values,formData){
+            const reverseMode = formData.isForm
             let correspondances = null
             let propNames = {}
             if (!reverseMode){
@@ -480,7 +481,7 @@ const enumlevel2Helper = {
             } else {
                 associatingForm = this.appendReverseParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
                 associatingForm = this.appendReverseChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField)
-                correspondances = await this.getCorrespondancesReverse(associatingForm,fieldName,parentField)
+                correspondances = await this.getCorrespondancesReverse(associatingForm,fieldName,formData.wantedFieldId)
                 propNames = associatingForm.reverseChildrenFieldsPropertyNames
             }
             let secondLevelValues = {}
@@ -567,7 +568,7 @@ const enumlevel2Helper = {
                     )
             }
         },
-        async getCorrespondancesReverse(associatingForm,fieldName){
+        async getCorrespondancesReverse(associatingForm,fieldName,wantedFieldId = ''){
             if (associatingForm.bn_id_nature in this.correspondances){
                 return this.correspondances[associatingForm.bn_id_nature]
             } else {
@@ -583,8 +584,17 @@ const enumlevel2Helper = {
                                     parents: [],
                                     children: {}
                                 }
-                                for (const propertyName in associatingForm.reverseParentsFieldsPropertyNames[fieldName]) {
-                                    tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents)
+                                if (typeof wantedFieldId == 'string' && wantedFieldId.length > 0){
+                                    const foundFields = Object.keys(associatingForm.reverseParentsFieldsPropertyNames[fieldName]).filter((k)=>{
+                                        return k == wantedFieldId || associatingForm.reverseParentsFieldsPropertyNames[fieldName][k].name == wantedFieldId
+                                    })
+                                    foundFields.forEach((k)=>{
+                                        tmp.parents = this.appendToArrayIfInEntry(e,k,tmp.parents)
+                                    })
+                                } else {
+                                    for (const propertyName in associatingForm.reverseParentsFieldsPropertyNames[fieldName]) {
+                                        tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents)
+                                    }
                                 }
                                 
                                 for (const childId in associatingForm.reverseChildrenFieldsPropertyNames) {
@@ -754,9 +764,10 @@ const enumlevel2Helper = {
             let parentFieldName = element.dataset.fieldParentFieldname || ''
             let fieldName = element.dataset.fieldName || ''
             let associatingFormId = element.dataset.fieldAssociatingFormId || ''
+            let associatingFieldId = element.dataset.fieldAssociatingFieldId || ''
             let isForm = element.dataset.isForm || false
             if (propertyName.length > 0 && parentFieldName.length > 0){
-                this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId,isForm}
+                this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId,isForm,associatingFieldId}
                 let field = this.findField(propertyName)
                 if (field && typeof field == "object"){
                     this.levels2[propertyName].type = field.type
@@ -1029,7 +1040,7 @@ const enumlevel2Helper = {
                                 promises.push(
                                     new Promise((resolve,reject)=>{
                                         this.getForm(formId).then((form)=>{
-                                            this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData.isForm).then((secondLevelValues)=>{
+                                            this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData).then((secondLevelValues)=>{
                                                 this.updateSecondLevel(secondLevelValues, isInit)
                                                 resolve(form)
                                             })

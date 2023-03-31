@@ -18,12 +18,14 @@ var extractFromSave = function(base){
     
   var results = {
     parentFieldName: '',
-    associatingForm: ''
+    associatingForm: '',
+    associatingField: ''
   }
   if (dataToSave && dataToSave.length > 0){
       const value = dataToSave.val().split('|')
       results.parentFieldName = value[0] || ''
       results.associatingForm = value[1] || ''
+      results.associatingField = value[2] || ''
   }
   return results
 }
@@ -35,21 +37,23 @@ var prepareToSave = function(base){
   if (dataToSave && dataToSave.length > 0){
     var results = {
       parentFieldName: '',
-      associatingForm: ''
+      associatingForm: '',
+      associatingField: ''
     }
     const associations = {
       parentFieldName: 'input[type=text]',
       associatingForm: 'select',
+      associatingField: 'input[type=text]'
     }
     for (const key in associations) {
         const fieldForAssociation = $(base)
             .find(`${associations[key]}[name=${key}]`)
             .first()
         if (fieldForAssociation && fieldForAssociation.length > 0){
-            results[key] = fieldForAssociation.val() || ''
+          results[key] = fieldForAssociation.val() || ''
         }
     }
-    dataToSave.val(`${results.parentFieldName}|${results.associatingForm}`)
+    dataToSave.val(`${results.parentFieldName}|${results.associatingForm}|${results.associatingField}`)
   }
 }
 
@@ -84,19 +88,41 @@ var updateEnum2LevelList = function (element) {
     visibleSelect.append(newOption);
   });
 };
+var toggleAssociatingField = (target)=>{
+  const baseLocal = $(target).closest(".enumlevel2-field.form-field")
+  const associatingField = $(baseLocal).find('.form-group.associatingField-wrap')
+  const subType = $(baseLocal).find('.form-group.subtype-wrap select[name=subtype]')
+  const subTypeVal = (subType && subType.length > 0) ? subType.val() : ''
+  if (associatingField && associatingField.length>0){
+    if (target.value.length == 0 || subTypeVal.slice(-5) != 'fiche'){
+      associatingField.hide()
+    } else {
+      associatingField.show()
+    }
+  }
+}
 var initEnum2Level = function(){
-  $(".enumlevel2-field")
-  .find("select[name=subtype]:not(.initialized)")
-  .change(function(event){updateEnum2LevelList(event.target)})
-  .trigger("change");
-  $(".enumlevel2-field")
-    .find("input[type=text][name=parentFieldName]:not(.initialized)")
-    .change(function(event){updateFieldEnum2Level(event.target,'parentFieldName')})
-    .trigger("change");
-  $(".enumlevel2-field")
-    .find("select[name=associatingForm]:not(.initialized)")
-    .change(function(event){updateFieldEnum2Level(event.target,'associatingForm')})
-    .trigger("change");
+  const base = $(".enumlevel2-field")
+  const selectSubtype = base.find("select[name=subtype]:not(.initialized)")
+  const selectAssociatingForm = base.find("select[name=associatingForm]:not(.initialized)")
+  const textParentFieldName = base.find("input[type=text][name=parentFieldName]:not(.initialized)")
+  const textAssociatingField = base.find("input[type=text][name=associatingField]:not(.initialized)")
+
+  selectSubtype.change(function(event){
+    updateEnum2LevelList(event.target)
+    toggleAssociatingField(event.target)
+  })
+  selectAssociatingForm.change(function(event){
+    updateFieldEnum2Level(event.target,'associatingForm')
+    toggleAssociatingField(event.target)
+  })
+  textParentFieldName.change(function(event){updateFieldEnum2Level(event.target,'parentFieldName')})
+  textAssociatingField.change(function(event){updateFieldEnum2Level(event.target,'associatingField')})
+
+  selectSubtype.trigger("change")
+  selectAssociatingForm.trigger("change")
+  textParentFieldName.trigger("change")
+  textAssociatingField.trigger("change")
 };
 
 var selectConfWithoutSubtype2 = {...selectConf};
@@ -131,6 +157,10 @@ typeUserAttrs = {
         associatingForm: {
           label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL'),
           options: {...{"":""},...formAndListIds.forms},
+        },
+        associatingField: {
+          label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FIELDID_LABEL'),
+          value: ''
         },
         dataToSave: {
           label: 'dataToSave',
