@@ -1162,13 +1162,13 @@ const enumlevel2Helper = {
                     case "checkbox":
                     case "checkboxdraganddrop":
                         nodesForWhatDispatchChangeEvent = this.updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent)
-                        return
+                        break
                     case "checkboxtag":
                         this.updateCheckoxTag(field,secondLevelValues,childId)
-                        return 
+                        break 
                     case "radio":
                         this.updateRadio(field,secondLevelValues,childId)
-                        return
+                        break
                     case "select":
                         this.updateSelect(isInit,field,secondLevelValues,childId)
                     default:
