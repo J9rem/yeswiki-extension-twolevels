@@ -219,6 +219,10 @@ const enumlevel2Helper = {
         closest(node,classNames){
             let curParentNode = node
             for (let index = 0; index < 100; index++) {
+                if (typeof curParentNode === 'undefined' || curParentNode === null 
+                    || curParentNode.parentNode == undefined ||  typeof curParentNode.parentNode.classList == 'undefined'){
+                    return null
+                }
                 curParentNode = curParentNode.parentNode
                 if (classNames.length == 0 || classNames.every((e)=>curParentNode.classList.contains(e))){
                     return curParentNode
