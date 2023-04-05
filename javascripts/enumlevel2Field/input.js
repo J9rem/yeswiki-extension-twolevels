@@ -528,7 +528,7 @@ const enumlevel2Helper = {
                     }
                 }
             })
-            return secondLevelValues
+            return [secondLevelValues,associatingForm]
         },
         getCheckboxTagValues(node){
             let values = []
