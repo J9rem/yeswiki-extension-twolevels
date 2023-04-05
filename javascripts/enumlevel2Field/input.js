@@ -57,46 +57,48 @@ const enumlevel2Helper = {
             this.addEvent(eventName,listener,true)
         },
         appendChildrenFieldsPropertyNamestoParentForm(form,parentField){
-            if (!('childrenFieldsPropertyNames' in form)){
-                form.childrenFieldsPropertyNames = {}
+            const formId = form.bn_id_nature
+            if (!('childrenFieldsPropertyNames' in this.forms[formId])){
+                this.forms[formId].childrenFieldsPropertyNames = {}
             }
             parentField.childrenIds.forEach((childId)=>{
-                if (!(childId in form.childrenFieldsPropertyNames)){
-                    form.childrenFieldsPropertyNames[childId] = {}
+                if (!(childId in this.forms[formId].childrenFieldsPropertyNames)){
+                    this.forms[formId].childrenFieldsPropertyNames[childId] = {}
                     let childLinkedObjectId= this.levels2[childId].linkedObjectId
                     if (childLinkedObjectId.length > 0){
-                        let prepared = (Array.isArray(form.prepared))
-                            ? form.prepared
+                        let prepared = (Array.isArray(this.forms[formId].prepared))
+                            ? this.forms[formId].prepared
                             : (
-                                typeof form.prepared == "object"
-                                ? Object.values(form.prepared)
+                                typeof this.forms[formId].prepared == "object"
+                                ? Object.values(this.forms[formId].prepared)
                                 : []
                             )
     
                         prepared.forEach((field)=> {
                             if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
                                 .includes(field.type) && field.linkedObjectName == childLinkedObjectId){
-                                form.childrenFieldsPropertyNames[childId][field.propertyname] = field
+                                this.forms[formId].childrenFieldsPropertyNames[childId][field.propertyname] = field
                             }
                         })
                     }
                 }
             })
-            return form
+            return this.forms[formId]
         },
         appendParentsFieldsPropertyNamestoParentForm(form,fieldName,parentField){
-            if (!('parentsFieldsPropertyNames' in form)){
+            const formId = form.bn_id_nature
+            if (!('parentsFieldsPropertyNames' in this.forms[formId])){
                 form.parentsFieldsPropertyNames = {}
             }
 
             if (fieldName && fieldName.length > 0 && 
-                !(fieldName in form.parentsFieldsPropertyNames)){
-                form.parentsFieldsPropertyNames[fieldName] = {}
-                let prepared = (Array.isArray(form.prepared))
-                    ? form.prepared
+                !(fieldName in this.forms[formId].parentsFieldsPropertyNames)){
+                    this.forms[formId].parentsFieldsPropertyNames[fieldName] = {}
+                let prepared = (Array.isArray(this.forms[formId].prepared))
+                    ? this.forms[formId].prepared
                     : (
-                        typeof form.prepared == "object"
-                        ? Object.values(form.prepared)
+                        typeof this.forms[formId].prepared == "object"
+                        ? Object.values(this.forms[formId].prepared)
                         : []
                     )
                 const isList = (type) => {
@@ -122,46 +124,48 @@ const enumlevel2Helper = {
                     const isEnumList = isList(field.type) || isEnum2Level(field,'list')
                     if ((isEnum(field) && field.linkedObjectName == parentField.linkedObjectId) ||
                         (isEnumList && parentField.linkedObjectId.slice(0,field.linkedObjectName.length) == field.linkedObjectName)){
-                        form.parentsFieldsPropertyNames[fieldName][field.propertyname] = field
+                            this.forms[formId].parentsFieldsPropertyNames[fieldName][field.propertyname] = field
                     }
                 })
             }
-            return form
+            return this.forms[formId]
         },
         appendReverseChildrenFieldsPropertyNamestoParentForm(form,parentField){
-            if (!('reverseChildrenFieldsPropertyNames' in form)){
-                form.reverseChildrenFieldsPropertyNames = {}
+            const formId = form.bn_id_nature
+            if (!('reverseChildrenFieldsPropertyNames' in this.forms[formId])){
+                this.forms[formId].reverseChildrenFieldsPropertyNames = {}
             }
             parentField.childrenIds.forEach((childId)=>{
-                if (!(childId in form.reverseChildrenFieldsPropertyNames)){
-                    form.reverseChildrenFieldsPropertyNames[childId] = {'id_fiche':'id_fiche'}
+                if (!(childId in this.forms[formId].reverseChildrenFieldsPropertyNames)){
+                    this.forms[formId].reverseChildrenFieldsPropertyNames[childId] = {'id_fiche':'id_fiche'}
                 }
             })
-            return form
+            return this.forms[formId]
         },
         appendReverseParentsFieldsPropertyNamestoParentForm(form,fieldName,parentField){
-            if (!('reverseParentsFieldsPropertyNames' in form)){
-                form.reverseParentsFieldsPropertyNames = {}
+            const formId = form.bn_id_nature
+            if (!('reverseParentsFieldsPropertyNames' in this.forms[formId])){
+                this.forms[formId].reverseParentsFieldsPropertyNames = {}
             }
             const childId = parentField.linkedObjectId
-            if (childId.length > 0 && !(fieldName in form.reverseParentsFieldsPropertyNames)){
-                form.reverseParentsFieldsPropertyNames[fieldName] = {}
-                let prepared = (Array.isArray(form.prepared))
-                    ? form.prepared
+            if (childId.length > 0 && !(fieldName in this.forms[formId].reverseParentsFieldsPropertyNames)){
+                this.forms[formId].reverseParentsFieldsPropertyNames[fieldName] = {}
+                let prepared = (Array.isArray(this.forms[formId].prepared))
+                    ? this.forms[formId].prepared
                     : (
-                        typeof form.prepared == "object"
-                        ? Object.values(form.prepared)
+                        typeof this.forms[formId].prepared == "object"
+                        ? Object.values(this.forms[formId].prepared)
                         : []
                     )
 
                 prepared.forEach((field)=> {
                     if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
                         .includes(field.type) && field.linkedObjectName == childId){
-                        form.reverseParentsFieldsPropertyNames[fieldName][field.propertyname] = field
+                            this.forms[formId].reverseParentsFieldsPropertyNames[fieldName][field.propertyname] = field
                     }
                 })
             }
-            return form
+            return this.forms[formId]
         },
         appendToArrayIfInEntry(entry,propName,currentArray){
             if (propName in entry && 
@@ -555,30 +559,43 @@ const enumlevel2Helper = {
             return values
         },
         async getCorrespondances(associatingForm,fieldName){
-            if (associatingForm.bn_id_nature in this.correspondances){
-                return this.correspondances[associatingForm.bn_id_nature]
+            return await this.getCorrespondancesCommon({
+                associatingForm,
+                fieldName,
+                getParentsAndChildren:(tmp,entry)=>{
+                    for (const propertyName in associatingForm.parentsFieldsPropertyNames[fieldName]) {
+                        tmp.parents = this.appendToArrayIfInEntry(entry,propertyName,tmp.parents)
+                    }
+                    for (const childId in associatingForm.childrenFieldsPropertyNames) {
+                        tmp.children[childId] = []
+                        for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
+                            tmp.children[childId] = this.appendToArrayIfInEntry(entry,propertyName,tmp.children[childId])
+                        }
+                    }
+                }
+            })
+        },
+        async getCorrespondancesCommon({associatingForm,fieldName,getParentsAndChildren}){
+            if (associatingForm.bn_id_nature in this.correspondances && fieldName in this.correspondances[associatingForm.bn_id_nature]){
+                return this.correspondances[associatingForm.bn_id_nature][fieldName]
             } else {
                 return await this.getAllEntries(associatingForm.bn_id_nature)
-                    .then((entries)=>this.registerCorrespondances(associatingForm.bn_id_nature,async ()=>{
+                    .then((entries)=>this.registerCorrespondances(associatingForm.bn_id_nature,fieldName,async ()=>{
                             let entries = this.allEntriesCache[associatingForm.bn_id_nature] || []
                             if (entries.length == 0){
                                 console.log(`entries should not be empty`)
                             }
-                            let correspondances = {}
+                            let correspondances = 
+                                (associatingForm.bn_id_nature in this.correspondances && 
+                                    fieldName in this.correspondances[associatingForm.bn_id_nature])
+                                ? this.correspondances[associatingForm.bn_id_nature][fieldName]
+                                : []
                             entries.forEach((e)=>{
                                 let tmp = {
                                     parents: [],
                                     children: {}
                                 }
-                                for (const propertyName in associatingForm.parentsFieldsPropertyNames[fieldName]) {
-                                    tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents)
-                                }
-                                for (const childId in associatingForm.childrenFieldsPropertyNames) {
-                                    tmp.children[childId] = []
-                                    for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
-                                        tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId])
-                                    }
-                                }
+                                getParentsAndChildren(tmp,e)
                                 tmp.parents.forEach((p)=>{
                                     if (!(p in correspondances)){
                                         correspondances[p] = {}
@@ -596,73 +613,46 @@ const enumlevel2Helper = {
                                     
                                 })
                             })
-                            this.correspondances[associatingForm.bn_id_nature] = correspondances
+                            if (!(associatingForm.bn_id_nature in this.correspondances)){
+                                this.correspondances[associatingForm.bn_id_nature] = {}
+                            }
+                            this.correspondances[associatingForm.bn_id_nature][fieldName] = correspondances
                             return correspondances
                         })
                     )
             }
         },
         async getCorrespondancesReverse(associatingForm,fieldName,wantedFieldId = '',wantedchildId = ''){
-            if (associatingForm.bn_id_nature in this.correspondances){
-                return this.correspondances[associatingForm.bn_id_nature]
-            } else {
-                return await this.getAllEntries(associatingForm.bn_id_nature)
-                    .then((entries)=>this.registerCorrespondances(associatingForm.bn_id_nature,async ()=>{
-                            let entries = this.allEntriesCache[associatingForm.bn_id_nature] || []
-                            if (entries.length == 0){
-                                console.log(`entries should not be empty`)
-                            }
-                            let correspondances = {}
-                            entries.forEach((e)=>{
-                                let tmp = {
-                                    parents: [],
-                                    children: {}
-                                }
-                                if (typeof wantedFieldId == 'string' && wantedFieldId.length > 0){
-                                    const foundFields = Object.keys(associatingForm.reverseParentsFieldsPropertyNames[fieldName]).filter((k)=>{
-                                        return k == wantedFieldId || associatingForm.reverseParentsFieldsPropertyNames[fieldName][k].name == wantedFieldId
-                                    })
-                                    foundFields.forEach((k)=>{
-                                        tmp.parents = this.appendToArrayIfInEntry(e,k,tmp.parents)
-                                    })
-                                } else {
-                                    for (const propertyName in associatingForm.reverseParentsFieldsPropertyNames[fieldName]) {
-                                        tmp.parents = this.appendToArrayIfInEntry(e,propertyName,tmp.parents)
-                                    }
-                                }
-                                
-                                let wantedIds = Object.keys(associatingForm.reverseChildrenFieldsPropertyNames)
-                                if (typeof wantedchildId == 'string' && wantedchildId.length > 0 && wantedIds.includes(wantedchildId)){
-                                    wantedIds = [wantedchildId]
-                                }
-                                wantedIds.forEach((childId)=>{
-                                    tmp.children[childId] = []
-                                    for (const propertyName in associatingForm.reverseChildrenFieldsPropertyNames[childId]) {
-                                        tmp.children[childId] = this.appendToArrayIfInEntry(e,propertyName,tmp.children[childId])
-                                    }
-                                })
-                                tmp.parents.forEach((p)=>{
-                                    if (!(p in correspondances)){
-                                        correspondances[p] = {}
-                                    }
-                                    for (const childId in tmp.children) {
-                                        if (!(childId in correspondances[p])){
-                                            correspondances[p][childId] = []
-                                        }
-                                        tmp.children[childId].forEach((val)=>{
-                                            if (!correspondances[p][childId].includes(val)){
-                                                correspondances[p][childId] = [...correspondances[p][childId],val]
-                                            }
-                                        })
-                                    }
-                                    
-                                })
-                            })
-                            this.correspondances[associatingForm.bn_id_nature] = correspondances
-                            return correspondances
+            
+            return await this.getCorrespondancesCommon({
+                associatingForm,
+                fieldName,
+                getParentsAndChildren:(tmp,entry)=>{
+                    if (typeof wantedFieldId == 'string' && wantedFieldId.length > 0){
+                        const foundFields = Object.keys(associatingForm.reverseParentsFieldsPropertyNames[fieldName]).filter((k)=>{
+                            return k == wantedFieldId || associatingForm.reverseParentsFieldsPropertyNames[fieldName][k].name == wantedFieldId
                         })
-                    )
-            }
+                        foundFields.forEach((k)=>{
+                            tmp.parents = this.appendToArrayIfInEntry(entry,k,tmp.parents)
+                        })
+                    } else {
+                        for (const propertyName in associatingForm.reverseParentsFieldsPropertyNames[fieldName]) {
+                            tmp.parents = this.appendToArrayIfInEntry(entry,propertyName,tmp.parents)
+                        }
+                    }
+                    
+                    let wantedIds = Object.keys(associatingForm.reverseChildrenFieldsPropertyNames)
+                    if (typeof wantedchildId == 'string' && wantedchildId.length > 0 && wantedIds.includes(wantedchildId)){
+                        wantedIds = [wantedchildId]
+                    }
+                    wantedIds.forEach((childId)=>{
+                        tmp.children[childId] = []
+                        for (const propertyName in associatingForm.reverseChildrenFieldsPropertyNames[childId]) {
+                            tmp.children[childId] = this.appendToArrayIfInEntry(entry,propertyName,tmp.children[childId])
+                        }
+                    })
+                }
+            })
         },
         async getData(url,id,eventPrefix,loadingCacheName,testFunction){
             if (typeof testFunction != "function"){
@@ -859,13 +849,17 @@ const enumlevel2Helper = {
             })
             return await p.then((...args)=>Promise.resolve(...args))
         },
-        async registerCorrespondances(formId,asyncFunc){
-            if (formId in this.correspondances){
-                return this.correspondances[formId]
+        async registerCorrespondances(formId,fieldName,asyncFunc){
+            if (formId in this.correspondances && fieldName in this.correspondances[formId]){
+                return this.correspondances[formId][fieldName]
             }
-            return await this.manageInternalEvents(formId,'registerCorrespondances','registeringCorrespondances',asyncFunc).then((...args)=>{
+            return await this.manageInternalEvents(`${formId}-${fieldName}`,'registerCorrespondances','registeringCorrespondances',asyncFunc).then((...args)=>{
                 if (formId in this.correspondances){
-                    return this.correspondances[formId]
+                    if (fieldName in this.correspondances[formId]){
+                        return this.correspondances[formId][fieldName]
+                    } else {
+                        throw `this.correspondances[${formId}] should contain key '${fieldName}'at this state !`
+                    }
                 } else {
                     throw `this.correspondances should contain key '${formId}'at this state !`
                 }
