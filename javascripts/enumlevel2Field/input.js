@@ -226,6 +226,34 @@ const enumlevel2Helper = {
             }
             return null
         },
+        createPromise(promisesData,{formId,processFormAsync,getEntriesAsync,getEntriesLabel,isInit}){
+            // get form
+            promisesData.promises.push(new Promise((resolve,reject)=>{
+                this.getForm(formId).then((form)=>{
+                    processFormAsync(form).then(([secondLevelValues,formModified])=>{
+                        this.updateSecondLevel(secondLevelValues,isInit)
+                        resolve(formModified)
+                    })
+                    .catch((e)=>reject(e))
+                })
+                .catch((e)=>{
+                    reject(e)
+                })
+            }))
+            promisesData.promisesLabel.push(`getting form ${formId}`)
+            // start getting entries in parallel of form
+            promisesData.promises.push(
+                new Promise((resolve,reject)=>{
+                    getEntriesAsync().then((entries)=>{
+                        resolve(entries)
+                    })
+                    .catch((e)=>{
+                        reject(e)
+                    })
+                })
+            )
+            promisesData.promisesLabel.push(getEntriesLabel)
+        },
         dispatchEvent(eventName, param = undefined){
             if (typeof eventName == "string"){
                 if (eventName in this.eventsListeners){
@@ -1005,79 +1033,48 @@ const enumlevel2Helper = {
             if (typeof parentsFields != "object"){
                 throw "'parentsFields' should be an object with format 'fieldName' => field"
             } else {
-                let promises = []
-                let promisesLabel = []
+                let promisesData = {
+                    promises: [],
+                    promisesLabel: [],
+                }
                 for (let fieldName in parentsFields){
                     let parentField = parentsFields[fieldName]
                     if (parentField && parentField.linkedObjectId.length > 0){
                         let values = this.getParentFieldNameValues(parentField)
                         if (parentField.isForm){
-                            promises.push(
-                                new Promise((resolve,reject)=>{
-                                    this.getForm(parentField.linkedObjectId).then((form)=>{
-                                        this.getAvailableSecondLevelsValues(form,parentField,values).then(([secondLevelValues,formInt])=>{
-                                            this.updateSecondLevel(secondLevelValues,isInit)
-                                            resolve(formInt)
-                                        })
-                                        .catch((e)=>reject(e))
-                                    })
-                                    .catch((e)=>{
-                                        reject(e)
-                                    })
-                                })
-                            )
-                            promisesLabel.push(`getting form ${parentField.linkedObjectId}`)
-                            // start getting entries in parallel of form
-                            promises.push(
-                                new Promise((resolve,reject)=>{
-                                    this.getParentEntries(values).then((entries)=>{
-                                        resolve(entries)
-                                    })
-                                    .catch((e)=>{
-                                        reject(e)
-                                    })
-                                })
-                            )
-                            promisesLabel.push(`getting parentEntries for ${JSON.stringify(values)}`)
+                            this.createPromise(promisesData,{
+                                formId: parentField.linkedObjectId,
+                                processFormAsync: (form)=>{
+                                    return this.getAvailableSecondLevelsValues(form,parentField,values)
+                                },
+                                getEntriesAsync: ()=>{
+                                    return this.getParentEntries(values)
+                                },
+                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`,
+                                isInit})
                         } else {
                             let formsIds = this.extractListOfAssociatingForms(fieldName,parentField)
                             for (let formIdData of formsIds){
                                 const formId = formIdData.id
-                                promises.push(
-                                    new Promise((resolve,reject)=>{
-                                        this.getForm(formId).then((form)=>{
-                                            this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData).then((secondLevelValues)=>{
-                                                this.updateSecondLevel(secondLevelValues, isInit)
-                                                resolve(form)
-                                            })
-                                            .catch((e)=>reject(e))
-                                        })
-                                        .catch((e)=>{
-                                            reject(e)
-                                        })
-                                    })
-                                )
-                                promisesLabel.push(`getting form ${formId}`)
-                                // start getting entries in parallel of form
-                                promises.push(
-                                    new Promise((resolve,reject)=>{
-                                        this.getAllEntries(formId).then((entries)=>{
-                                            resolve(entries)
-                                        })
-                                        .catch((e)=>{
-                                            reject(e)
-                                        })
-                                    })
-                                )
-                                promisesLabel.push(`getting all entries of form ${formId}`)
+                                this.createPromise(promisesData,{
+                                    formId,
+                                    processFormAsync: (form)=>{
+                                        return this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData)
+                                    },
+                                    getEntriesAsync: ()=>{
+                                        return this.getAllEntries(formId)
+                                    },
+                                    getEntriesLabel: `getting all entries of form ${formId}`,
+                                    isInit})
                             }
                         }
                     }
                 }
-                return await Promise.allSettled(promises).then((promisesStatus)=>{
+                return await Promise.allSettled(promisesData.promises).then((promisesStatus)=>{
                     promisesStatus.forEach((p,idx)=>{
                         if (p.status != "fulfilled"){
-                            console.warn(`error : ${p.reason} (when ${promisesLabel[idx]})`)
+                            console.warn(`error : ${p.reason} (when ${promisesData.promisesLabel[idx]})`)
+                            console.error({error:p.reason})
                         }
                     })
                     return promisesStatus
