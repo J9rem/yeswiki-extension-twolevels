@@ -11,7 +11,7 @@
 // when selecting between data source lists or forms, we need to populate again the listOfFormId select with the
 // proper set of options
 
-var extractFromSave = function(base){
+const extractFromSave = function(base){
   const dataToSave = $(base)
     .find("input[type=text][name=dataToSave]")
     .first()
@@ -30,7 +30,7 @@ var extractFromSave = function(base){
   return results
 }
 
-var prepareToSave = function(base){
+const prepareToSave = function(base){
   const dataToSave = $(base)
     .find("input[type=text][name=dataToSave]")
     .first()
@@ -57,7 +57,7 @@ var prepareToSave = function(base){
   }
 }
 
-var updateFieldEnum2Level = function (element,type) {
+const updateFieldEnum2Level = function (element,type) {
   const base = $(element).closest(".enumlevel2-field.form-field")
   if (!$(element).hasClass("initialized")){
     $(element).addClass("initialized");
@@ -68,12 +68,12 @@ var updateFieldEnum2Level = function (element,type) {
   }
 }
 
-var updateEnum2LevelList = function (element) {
+const updateEnum2LevelList = function (element) {
   const base = $(element).closest(".enumlevel2-field.form-field")
   $(element).addClass("initialized");
   var visibleSelect = $(base)
     .find("select[name=listeOrFormId]");
-  selectedValue = visibleSelect.val();
+  var selectedValue = visibleSelect.val();
   visibleSelect.empty();
   let val = $(element).val();
   let type = val.match(/^(?:radio|checkbox|liste)fiche.*$/i) ? 'form' : 'list';
@@ -88,7 +88,7 @@ var updateEnum2LevelList = function (element) {
     visibleSelect.append(newOption);
   });
 };
-var toggleAssociatingField = (target)=>{
+const toggleAssociatingField = (target)=>{
   const baseLocal = $(target).closest(".enumlevel2-field.form-field")
   const associatingField = $(baseLocal).find('.form-group.associatingField-wrap')
   const subType = $(baseLocal).find('.form-group.subtype-wrap select[name=subtype]')
@@ -101,7 +101,7 @@ var toggleAssociatingField = (target)=>{
     }
   }
 }
-var initEnum2Level = function(){
+const initEnum2Level = function(){
   const base = $(".enumlevel2-field")
   const selectSubtype = base.find("select[name=subtype]:not(.initialized)")
   const selectAssociatingForm = base.find("select[name=associatingForm]:not(.initialized)")
@@ -125,108 +125,110 @@ var initEnum2Level = function(){
   textAssociatingField.trigger("change")
 };
 
-var selectConfWithoutSubtype2 = {...selectConf};
+const isNewFieldsFormat = (typeof typeUserAttrs === 'undefined' && typeof window.formBuilderFields === 'object')
+
+let selectConfWithoutSubtype2 = {}
+let listsMapping = {}
+let templateHelperLocal = null
+if (isNewFieldsFormat){
+  const {selectConf,listsMapping:listsMappingTmp} = await import('../../../bazar/presentation/javascripts/form-edit-template/fields/commons/attributes.js').catch(()=>{return {selectConf:{},listsMapping:{}}})
+  selectConfWithoutSubtype2 = {...selectConf}
+  const {default:tmp} = await import('../../../bazar/presentation/javascripts/form-edit-template/fields/commons/render-helper.js').catch(()=>{return {default:{}}})
+  templateHelperLocal = tmp
+  listsMapping = listsMappingTmp
+  // force loading window.yesWikiTypes
+  const {parseWikiTextIntoJsonData}  = await import('../../../bazar/presentation/javascripts/form-edit-template/yeswiki-syntax-converter.js').catch(()=>{return {parseWikiTextIntoJsonData:{}}})
+} else {
+  selectConfWithoutSubtype2 = {...selectConf}
+  listsMapping = lists
+  templateHelperLocal = templateHelper
+}
+
 delete selectConfWithoutSubtype2.subtype2;
 
-typeUserAttrs = {
-  ...typeUserAttrs,
-  ...{
-    enumlevel2: {
-      ...{
-        parentFieldName: {
-          label: _t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL'),
-          value: ""
-        },
-        subtype: {
-          label: _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LABEL'),
-          options: {
-            "checkbox": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOX'),
-            "radio": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIO'),
-            "liste": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTE'),
-            "checkboxtags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXTAGS'),
-            "radiotags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOTAGS'),
-            "checkboxdragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXDRAGNDROP'),
-            "checkboxfiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHE'),
-            "radiofiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHE'),
-            "listefiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE'),
-            "checkboxfichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHETAGS'),
-            "radiofichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHETAGS'),
-            "checkboxfichedragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHEDRAGNDROP'),
-          },
-        },
-        associatingForm: {
-          label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL'),
-          options: {...{"":""},...formAndListIds.forms},
-        },
-        associatingField: {
-          label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FIELDID_LABEL'),
-          value: ''
-        },
-        dataToSave: {
-          label: 'dataToSave',
-          value: ''
-        }
-      },
-      ...selectConfWithoutSubtype2,
-      ...{
-        queries: {
-          label: _t('BAZ_FORM_EDIT_QUERIES_LABEL'),
-          value: "",
-          placeholder: "ex. : checkboxfiche6=PageTag ; cf. https://yeswiki.net/?LierFormulairesEntreEux",
-        },
-      },
-    },
-  }
-};
-
-templates = {
-  ...templates,
-  ...{
-    enumlevel2: function (field) {
-      return { 
-        field: `
-          <div class="checkbox-group">
-            <div class="formbuilder-checkbox">
-              <input type="checkbox" id="${field.name}-preview-1" name="${field.name}" value="option-1" checked="checked"/>
-              <label for="${field.name}-preview-1">Option 1</label>
-              <input type="checkbox" id="${field.name}-preview-2" name="${field.name}" value="option-2" checked="checked"/>
-              <label for="${field.name}-preview-2">Option 2</label>
-            </div>
-            <label>Deux niveaux</label>
-          </div>
-          ` ,
-        onRender: function(){
-          initEnum2Level();
-          templateHelper.defineLabelHintForGroup(field,'parentFieldName',_t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT'));
-          templateHelper.defineLabelHintForGroup(field,'associatingForm',_t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_HINT'));
-        },
-      };
-    },
-  }
-};
-
-yesWikiMapping = {
-  ...yesWikiMapping,
-  ...{
-    enumlevel2: {
-      ...lists,
-      ...{
-        3: "dataToSave",
-        7: "subtype"
-      }
-    },
-  }
-};
-
-fields.push({
+const field = {
+  field: {
     label: _t('TWOLEVELS_ENUM_FIELD_LABEL'),
     name: "enumlevel2",
     attrs: { type: "enumlevel2", subtype:"checkbox" },
     icon: '<i class="fas fa-list-ul"></i>',
-  });
+  },
+  attributes: {
+    ...{
+      parentFieldName: {
+        label: _t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL'),
+        value: ""
+      },
+      subtype: {
+        label: _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LABEL'),
+        options: {
+          "checkbox": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOX'),
+          "radio": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIO'),
+          "liste": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTE'),
+          "checkboxtags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXTAGS'),
+          "radiotags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOTAGS'),
+          "checkboxdragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXDRAGNDROP'),
+          "checkboxfiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHE'),
+          "radiofiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHE'),
+          "listefiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE'),
+          "checkboxfichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHETAGS'),
+          "radiofichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHETAGS'),
+          "checkboxfichedragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHEDRAGNDROP'),
+        },
+      },
+      associatingForm: {
+        label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL'),
+        options: {...{"":""},...formAndListIds.forms},
+      },
+      associatingField: {
+        label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FIELDID_LABEL'),
+        value: ''
+      },
+      dataToSave: {
+        label: 'dataToSave',
+        value: ''
+      }
+    },
+    ...selectConfWithoutSubtype2,
+    ...{
+      queries: {
+        label: _t('BAZ_FORM_EDIT_QUERIES_LABEL'),
+        value: "",
+        placeholder: "ex. : checkboxfiche6=PageTag ; cf. https://yeswiki.net/?LierFormulairesEntreEux",
+      },
+    }
+  },
+  attributesMapping: {
+    ...listsMapping,
+    ...{
+      3: "dataToSave",
+      7: "subtype"
+    }
+  },
+  renderInput(field) {
+    return { 
+      field: `
+        <div class="checkbox-group">
+          <div class="formbuilder-checkbox">
+            <input type="checkbox" id="${field.name}-preview-1" name="${field.name}" value="option-1" checked="checked"/>
+            <label for="${field.name}-preview-1">Option 1</label>
+            <input type="checkbox" id="${field.name}-preview-2" name="${field.name}" value="option-2" checked="checked"/>
+            <label for="${field.name}-preview-2">Option 2</label>
+          </div>
+          <label>Deux niveaux</label>
+        </div>
+        ` ,
+      onRender: function(){
+        initEnum2Level();
+        templateHelperLocal.defineLabelHintForGroup(field,'parentFieldName',_t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT'));
+        templateHelperLocal.defineLabelHintForGroup(field,'associatingForm',_t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_HINT'));
+      },
+    };
+  },
+}
 
-yesWikiTypes = {
-  ...yesWikiTypes,
+window.yesWikiTypes = {
+  ...window.yesWikiTypes,
   ...{
     enumlevel2checkbox: {type: "enumlevel2",subtype: "checkbox"},
     enumlevel2checkboxdragndrop: {type: "enumlevel2",subtype: "checkboxdragndrop"},
@@ -241,4 +243,28 @@ yesWikiTypes = {
     enumlevel2liste: {type: "enumlevel2",subtype: "liste"},
     enumlevel2listefiche: {type: "enumlevel2",subtype: "listefiche"}
   }
-};
+}
+
+if (isNewFieldsFormat){
+  window.formBuilderFields.enumlevel2 = field
+} else {
+  typeUserAttrs = {
+    ...typeUserAttrs,
+    ...{
+      [field.field.name]: field.attributes
+    }
+  }
+  templates = {
+    ...templates,
+    ...{
+      [field.field.name]: field.renderInput
+    }
+  }
+  yesWikiMapping = {
+    ...yesWikiMapping,
+    ...{
+      [field.field.name]: field.attributesMapping
+    }
+  }
+  fields.push(field.field)
+}

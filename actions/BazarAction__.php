@@ -23,7 +23,7 @@ class BazarAction__ extends YesWikiAction
             && isset($this->arguments[BazarAction::VARIABLE_VOIR]) && $this->arguments[BazarAction::VARIABLE_VOIR] === BazarAction::VOIR_FORMULAIRE
             && isset($this->arguments[BazarAction::VARIABLE_ACTION]) && in_array($this->arguments[BazarAction::VARIABLE_ACTION], [BazarAction::ACTION_FORM_CREATE,BazarAction::ACTION_FORM_EDIT], true)
         ) {
-            $this->wiki->AddJavascriptFile('tools/twolevels/javascripts/enumlevel2Field/form-edit-template.js');
+            $this->wiki->AddJavascriptFile('tools/twolevels/javascripts/enumlevel2Field/form-edit-template.js', false, true);
             $this->wiki->AddCSSFile('tools/twolevels/styles/form-edit-template.css');
         }
     }
