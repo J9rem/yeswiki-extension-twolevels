@@ -8,9 +8,14 @@
  */
 
 if (Vue) {
+    const canShowAnd = (root) => {
+        return (typeof root.params.intrafiltersmode === 'string')
+           && ['and','sublevel'].includes(root.params.intrafiltersmode)
+    }
+
     Vue.prototype.isDisplayedFilterOption = function(filterOption,root){
         return root.params.autohidefilter === "false" ||
-            (root.params.intrafiltersmode != 'and' && filterOption.checked) 
+            (!canShowAnd(root) && filterOption.checked) 
             || filterOption.nb > 0
         ;
     }
@@ -36,7 +41,7 @@ if (Vue) {
         methods: {
             processParams: function(){
                 this.unwatcher.params();
-                if (this.root.params.intrafiltersmode === "and"){
+                if (canShowAnd(this.root)){
                     this.registerWatcher('filteredEntries');
                 }
             },
@@ -105,7 +110,7 @@ if (Vue) {
                     ? root.filteredEntries.filter(entry => entry.bf_latitude && entry.bf_longitude)
                     : root.filteredEntries
             }
-            if (root.params.intrafiltersmode === "and"){
+            if (canShowAnd(root)){
                 for(const filterId in root.computedFilters) {
                     availableEntriesForThisFilter = availableEntriesForThisFilter.filter((entry)=>{
                         if (!(filterId in entry) || typeof entry[filterId] != "string") return false;
