@@ -108,6 +108,9 @@ const enumlevel2Helper = {
             if (!match) return ""
             return match[0].slice(1,-1)
         },
+        extractLinkedObjects(){
+            return Object.fromEntries(Object.entries(this.levels2).map(([k,v])=>[k,v.linkedObjectId]))
+        },
         extractLinkedObjectIdForCheckox(node, mode = "group-checkbox-", type = "checkbox"){
             let linkedObjectId = ""
             let fieldPropertyName = ""
@@ -532,7 +535,7 @@ const enumlevel2Helper = {
                             this.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: (form)=>{
-                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.levels2)
+                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.extractLinkedObjects())
                                 },
                                 getEntriesAsync: ()=>{
                                     return twoLevelsHelper.getParentEntries(values)
@@ -546,7 +549,7 @@ const enumlevel2Helper = {
                                 this.createPromise(promisesData,{
                                     formId,
                                     processFormAsync: (form)=>{
-                                        return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.levels2)
+                                        return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.extractLinkedObjects())
                                     },
                                     getEntriesAsync: ()=>{
                                         return twoLevelsHelper.getAllEntries(formId)
