@@ -74,34 +74,6 @@ const enumlevel2Helper = {
             }
             return null
         },
-        createPromise(promisesData,{formId,processFormAsync,getEntriesAsync,getEntriesLabel,isInit}){
-            // get form
-            promisesData.promises.push(new Promise((resolve,reject)=>{
-                twoLevelsHelper.getForm(formId).then((form)=>{
-                    processFormAsync(form).then(([secondLevelValues,formModified])=>{
-                        this.updateSecondLevel(secondLevelValues,isInit)
-                        resolve(formModified)
-                    })
-                    .catch((e)=>reject(e))
-                })
-                .catch((e)=>{
-                    reject(e)
-                })
-            }))
-            promisesData.promisesLabel.push(`getting form ${formId}`)
-            // start getting entries in parallel of form
-            promisesData.promises.push(
-                new Promise((resolve,reject)=>{
-                    getEntriesAsync().then((entries)=>{
-                        resolve(entries)
-                    })
-                    .catch((e)=>{
-                        reject(e)
-                    })
-                })
-            )
-            promisesData.promisesLabel.push(getEntriesLabel)
-        },
         extractInputCheckboxValue(node){
             let name = node.getAttribute('name')
             let match = name.match(/\[[A-Za-z0-9_\-]+\]$/)
@@ -523,52 +495,47 @@ const enumlevel2Helper = {
             if (typeof parentsFields != "object"){
                 throw "'parentsFields' should be an object with format 'fieldName' => field"
             } else {
-                let promisesData = {
-                    promises: [],
-                    promisesLabel: [],
-                }
+                let promisesData = twoLevelsHelper.initPromisesData()
                 for (let fieldName in parentsFields){
                     let parentField = parentsFields[fieldName]
                     if (parentField && parentField.linkedObjectId.length > 0){
                         let values = this.getParentFieldNameValues(parentField)
                         if (parentField.isForm){
-                            this.createPromise(promisesData,{
+                            twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
-                                processFormAsync: (form)=>{
+                                processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.extractLinkedObjects())
+                                        .then(([secondLevelValues,formModified])=>{
+                                            this.updateSecondLevel(secondLevelValues,isInit)
+                                            return [secondLevelValues,formModified]
+                                        })
                                 },
                                 getEntriesAsync: ()=>{
                                     return twoLevelsHelper.getParentEntries(values)
                                 },
-                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`,
-                                isInit})
+                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`})
                         } else {
                             let formsIds = this.extractListOfAssociatingForms(fieldName,parentField)
                             for (let formIdData of formsIds){
                                 const formId = formIdData.id
-                                this.createPromise(promisesData,{
+                                twoLevelsHelper.createPromise(promisesData,{
                                     formId,
-                                    processFormAsync: (form)=>{
+                                    processFormAsync: async (form)=>{
                                         return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.extractLinkedObjects())
+                                        .then(([secondLevelValues,formModified])=>{
+                                            this.updateSecondLevel(secondLevelValues,isInit)
+                                            return [secondLevelValues,formModified]
+                                        })
                                     },
                                     getEntriesAsync: ()=>{
                                         return twoLevelsHelper.getAllEntries(formId)
                                     },
-                                    getEntriesLabel: `getting all entries of form ${formId}`,
-                                    isInit})
+                                    getEntriesLabel: `getting all entries of form ${formId}`})
                             }
                         }
                     }
                 }
-                return await Promise.allSettled(promisesData.promises).then((promisesStatus)=>{
-                    promisesStatus.forEach((p,idx)=>{
-                        if (p.status != "fulfilled"){
-                            console.warn(`error : ${p.reason} (when ${promisesData.promisesLabel[idx]})`)
-                            console.error({error:p.reason})
-                        }
-                    })
-                    return promisesStatus
-                })
+                return await twoLevelsHelper.resolvePromises(promisesData)
             }
         },
         updateRadio(field,secondLevelValues,childId){
