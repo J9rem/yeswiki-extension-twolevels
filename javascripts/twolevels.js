@@ -199,6 +199,10 @@ const assertIsRegularEntryId = (entryId)=>{
     }
 }
 
+const extractLinkedObjects = (data) => {
+    return Object.fromEntries(Object.entries(data).map(([k,v])=>[k,v.linkedObjectId]))
+}
+
 const manageInternalEvents = async(id,eventPrefix,loadingCacheName,asynFunc)=>{
     let p = new Promise((resolve,reject)=>{
         addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve())
@@ -341,8 +345,8 @@ const getParentEntries = async (entriesIds)=>{
         return promisesStatus.filter((p)=>p.status=="fulfilled").map((p)=>p.value)
     })
 }
-const getAvailableSecondLevelsValues = async (parentForm,parentField,values,linkedObjectIds) =>{
-    parentForm = appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField,linkedObjectIds)
+const getAvailableSecondLevelsValues = async (parentForm,parentField,values,linkedObjectIdsCache) =>{
+    parentForm = appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField,extractLinkedObjects(linkedObjectIdsCache))
     return await getParentEntries(values).then(()=>{
         let secondLevelValues = {}
         let associations = {}
@@ -486,12 +490,12 @@ const getCorrespondancesReverse = async (associatingForm,fieldName,wantedFieldId
         }
     })
 }
-const getAvailableSecondLevelsValuesForLists = async (associatingForm,fieldName,parentField,values,formData,linkedObjectIds)=>{
+const getAvailableSecondLevelsValuesForLists = async (associatingForm,fieldName,parentField,values,formData,linkedObjectIdsCache)=>{
     const reverseMode = formData.isForm
     let correspondances = null
     let propNames = {}
     if (!reverseMode){
-        associatingForm = appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField,linkedObjectIds)
+        associatingForm = appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField,extractLinkedObjects(linkedObjectIdsCache))
         associatingForm = appendParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
         correspondances = await getCorrespondances(associatingForm,fieldName,parentField)
         propNames = associatingForm.childrenFieldsPropertyNames
@@ -608,6 +612,7 @@ export default {
     getAllEntries,
     getAvailableSecondLevelsValues,
     getAvailableSecondLevelsValuesForLists,
+    getForm,
     getParentEntries,
     initPromisesData,
     resolvePromises

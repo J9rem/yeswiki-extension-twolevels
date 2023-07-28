@@ -147,9 +147,6 @@ const enumlevel2Helper = {
             }
             return ''
         },
-        extractLinkedObjects(){
-            return Object.fromEntries(Object.entries(this.levels2).map(([k,v])=>[k,v.linkedObjectId]))
-        },
         extractLinkedObjectIdForCheckox(node, mode = "group-checkbox-", type = "checkbox"){
             let linkedObjectId = ""
             let fieldPropertyName = ""
@@ -672,7 +669,7 @@ const enumlevel2Helper = {
                             twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
-                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.extractLinkedObjects())
+                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.levels2)
                                         .then(([secondLevelValues,formModified,associations])=>{
                                             this.updateSecondLevel(secondLevelValues,isInit,associations)
                                             return [secondLevelValues,formModified,associations]
@@ -689,7 +686,7 @@ const enumlevel2Helper = {
                                 twoLevelsHelper.createPromise(promisesData,{
                                     formId,
                                     processFormAsync: async (form)=>{
-                                        return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.extractLinkedObjects())
+                                        return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.levels2)
                                         .then(([secondLevelValues,formModified,associations])=>{
                                             this.updateSecondLevel(secondLevelValues,isInit,associations)
                                             return [secondLevelValues,formModified,associations]
