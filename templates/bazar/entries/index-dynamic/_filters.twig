@@ -9,53 +9,21 @@
 
 <filter-load-root :root="$root"></filter-load-root>
 
-<div class="filters-col col-sm-{{ params.filtercolsize }}">
-  {% if params.search %}
-    {{ include("@bazar/entries/index-dynamic/_search_input.twig") }}
-  {% endif %}
-
-  <div class="filters no-dblclick {{ params.filterposition }}" v-if="Object.keys(filters).length">
-    <div class="results-info text-info">
-      <template v-if="params.filtersresultnb">
-        <span class="nb-results">{{"{{ filteredEntriesCount }}"}}</span>
-        <span class="result-label">
-          <template v-if="filteredEntriesCount > 1">{{ _t('BAZ_FICHES_CORRESPONDANTES_FILTRES') }}</template>
-          <template v-else>{{ _t('BAZ_FICHE_CORRESPONDANT_FILTRES') }}</template>
-        </span>
-      </template>
-
-      <template v-if="params.resetfiltersbutton">
-        <span class="btn btn-xs btn-info reset-filters pull-right" @click="resetFilters()"
-              :class="{'btn-block': params.filtercolsize < 4}">
-          {{ _t('BAZ_RESET_FILTERS') }}
-        </span>
-        <div class="clearfix"></div>
-      </template>
-    </div>
-
-    <div class="results-container">
-      <template v-for="filter, key in refreshedFiltersWithentries(filteredEntries,$root)">
-        <Panel class="filter-box" v-if="filterHasAtLeastOneOption(filter,$root)" :collapsed.sync="filter.collapsed" :key="key">
-          <template #header>
-            <i v-html="filter.icon"></i>{{"{{ filter.title }}"}}
-          </template>
-          <template #body>
-            <template v-for="filterOption, id in filter.list">
-              <template v-if="isDisplayedFilterOption(filterOption,$root)">
-                <div class="checkbox" :key="id">
-                  <label>
-                    <input class="filter-checkbox" type="checkbox" v-model="filterOption.checked" :value="filterOption.value">
-                    <span>
-                      <span v-html="filterOption.label"></span>
-                      <span class="nb">({{"{{ filterOption.nb }}"}})</span>
-                    </span>
-                  </label>
-                </div>
-              </template>
-            </template>
-          </template>
-        </Panel>
-      </template>
-    </div>
-  </div>
-</div>
+{{ include([
+    "custom/templates/tools/bazar/templates/entries/index-dynamic/_filters.twig",
+    "custom/templates/bazar/templates/entries/index-dynamic/_filters.twig",
+    "custom/templates/bazar/entries/index-dynamic/_filters.twig",
+    "themes/tools/bazar/templates/entries/index-dynamic/_filters.twig",
+    "themes/tools/bazar/entries/index-dynamic/_filters.twig",
+    "tools/bazar/templates/entries/index-dynamic/_filters.twig",
+    ])|replace({
+      'v-if="entriesToDisplay.length':'v-if="filteredEntriesCount',
+      '<div class="results-container">':'<div class="results-container">
+        <template v-for="filter, key in refreshedFiltersWithentries(filteredEntries,$root)">',
+      'v-for="filter, key in filters"':'v-if="filterHasAtLeastOneOption(filter,$root)"',
+      '<div class="checkbox" v-for="filterOption, id in filter.list" :key="id">':'<template v-for="filterOption, id in filter.list">
+        <template v-if="isDisplayedFilterOption(filterOption,$root)">
+          <div class="checkbox" :key="id">',
+      '<span class="nb" v-if="filterOption.nb">':'<span class="nb">',
+      '</Panel>':'</template></template></Panel></template>'
+    })|raw }}
