@@ -13,6 +13,22 @@ if (Vue) {
            && ['and','sublevel'].includes(root.params.intrafiltersmode)
     }
 
+    const filterEntries = (entries,mode,root) => {
+        if (mode !== 'and'){
+            return entries
+        }
+        let results = entries
+        for(const filterId in root.computedFilters) {
+            results = results.filter(entry => {
+                if (!(filterId in entry) || typeof entry[filterId] != "string"){
+                    return false
+                }
+                return root.computedFilters[filterId].every((value)=>entry[filterId].split(',').includes(value));
+            })
+        }
+        return results
+    }
+
     Vue.prototype.isDisplayedFilterOption = function(filterOption,root){
         return root.params.autohidefilter === "false" ||
             (!canShowAnd(root) && filterOption.checked) 
@@ -52,15 +68,9 @@ if (Vue) {
             },
             updateFilteredEntries: function(){
                 if (Object.keys(this.root.computedFilters).length > 0){
-                    let result = this.root.searchedEntries
-                    for(const filterId in this.root.computedFilters) {
-                        result = result.filter(entry => {
-                            if (!(filterId in entry) || typeof entry[filterId] != "string") return false;
-                            return this.root.computedFilters[filterId].every((value)=>entry[filterId].split(',').includes(value));
-                        })
-                    }
+                    const results = filterEntries(this.root.searchedEntries,'and',this.root)
                     this.unwatcher.filteredEntries();
-                    this.root.filteredEntries = result
+                    this.root.filteredEntries = results
                     this.registerWatcher('filteredEntries');
                     this.root.paginateEntries();
                 }
@@ -111,12 +121,7 @@ if (Vue) {
                     : root.filteredEntries
             }
             if (canShowAnd(root)){
-                for(const filterId in root.computedFilters) {
-                    availableEntriesForThisFilter = availableEntriesForThisFilter.filter((entry)=>{
-                        if (!(filterId in entry) || typeof entry[filterId] != "string") return false;
-                        return root.computedFilters[filterId].every((value)=>entry[filterId].split(',').includes(value));
-                    });
-                }
+                availableEntriesForThisFilter = filterEntries(availableEntriesForThisFilter,'and',root)
             }
             for (let option of root.filters[fieldName].list) {
                 if (typeof customCalculatebFromAvailableEntries == "function"){
