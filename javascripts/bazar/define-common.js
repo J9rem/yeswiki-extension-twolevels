@@ -13,8 +13,8 @@ if (Vue) {
            && ['and','sublevel'].includes(root.params.intrafiltersmode)
     }
 
-    const filterEntries = (entries,mode,root) => {
-        if (mode !== 'and'){
+    const filterEntriesSync = (entries,root) => {
+        if (!canShowAnd(root)){
             return entries
         }
         let results = entries
@@ -27,6 +27,42 @@ if (Vue) {
             })
         }
         return results
+    }
+
+    const getEntriesForThisField = (entries,fieldName,test) => {
+        return entries.filter(entry => {
+            let entryValues = entry[fieldName]
+            if (!entryValues || typeof entryValues != "string"){
+                return
+            }
+            entryValues = entryValues.split(',')
+            return entryValues.some(value => test(value))
+        })
+    }
+
+    const updateNbForEachFilter = (root,fieldName,availableEntriesForThisFilter) => {
+        for (let option of root.filters[fieldName].list) {
+            if (typeof customCalculatebFromAvailableEntries == "function"){
+                // allow usage of custom function if available
+                option.nb = customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName)
+            } else {
+                option.nb = getEntriesForThisField(availableEntriesForThisFilter,fieldName,(value)=>value == option.value).length
+            }
+        }
+    }
+
+    const getCheckedFiltersWithMoreThanOne = (root) => {
+        let modeThanOneCheckedFiltersName = [];
+        for(let fieldName in root.filters) {
+            for (let option of root.filters[fieldName].list) {
+                if (option.checked) {
+                    if (!modeThanOneCheckedFiltersName.includes(fieldName)){
+                        modeThanOneCheckedFiltersName.push(fieldName)
+                    }
+                }
+            }
+        }
+        return modeThanOneCheckedFiltersName
     }
 
     Vue.prototype.isDisplayedFilterOption = function(filterOption,root){
@@ -68,7 +104,7 @@ if (Vue) {
             },
             updateFilteredEntries: function(){
                 if (Object.keys(this.root.computedFilters).length > 0){
-                    const results = filterEntries(this.root.searchedEntries,'and',this.root)
+                    const results = filterEntriesSync(this.root.searchedEntries,this.root)
                     this.unwatcher.filteredEntries();
                     this.root.filteredEntries = results
                     this.registerWatcher('filteredEntries');
@@ -84,16 +120,7 @@ if (Vue) {
         `
     });
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
-        let modeThanOneCheckedFiltersName = [];
-        for(let fieldName in root.filters) {
-            for (let option of root.filters[fieldName].list) {
-                if (option.checked) {
-                    if (!modeThanOneCheckedFiltersName.includes(fieldName)){
-                        modeThanOneCheckedFiltersName.push(fieldName)
-                    }
-                }
-            }
-        }
+        const modeThanOneCheckedFiltersName = getCheckedFiltersWithMoreThanOne(root)
         for(let fieldName in root.filters) {
             let availableEntriesForThisFilter = root.searchedEntries;
             if (root.params.template === "map"){
@@ -103,39 +130,17 @@ if (Vue) {
                 modeThanOneCheckedFiltersName
                     .filter(fName=>fName!=fieldName)
                     .forEach((otherFieldName)=>{
-                        availableEntriesForThisFilter = availableEntriesForThisFilter.filter(entry=>{
-                            let entryValues = entry[otherFieldName]
-                            if (!entryValues || typeof entryValues != "string") return
-                            entryValues = entryValues.split(',');
-                            for (let option of root.filters[otherFieldName].list) {
-                                if (option.checked && entryValues.some(value => value == option.value)){
-                                    return true
-                                }
-                            }
-                            return false;
-                        });
+                        availableEntriesForThisFilter = getEntriesForThisField(availableEntriesForThisFilter,fieldName,(value)=>{
+                            return root.filters[otherFieldName].list.some((option)=>option.checked && value == option.value)
+                        })
                 });
             } else {
                 availableEntriesForThisFilter = (root.params.template === "map")
                     ? root.filteredEntries.filter(entry => entry.bf_latitude && entry.bf_longitude)
                     : root.filteredEntries
             }
-            if (canShowAnd(root)){
-                availableEntriesForThisFilter = filterEntries(availableEntriesForThisFilter,'and',root)
-            }
-            for (let option of root.filters[fieldName].list) {
-                if (typeof customCalculatebFromAvailableEntries == "function"){
-                    // allow usage of custom function if available
-                    option.nb = customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName)
-                } else {
-                    option.nb = availableEntriesForThisFilter.filter(entry => {
-                        let entryValues = entry[fieldName]
-                        if (!entryValues || typeof entryValues != "string") return
-                        entryValues = entryValues.split(',')
-                        return entryValues.some(value => value == option.value)
-                    }).length
-                }
-            }
+            availableEntriesForThisFilter = filterEntriesSync(availableEntriesForThisFilter,root)
+            updateNbForEachFilter(root,fieldName,availableEntriesForThisFilter)
         }
         return root.filters;
     };
