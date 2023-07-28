@@ -163,6 +163,7 @@ if (Vue) {
                         associations: {}
                     }
                     const fieldData = refreshOptionCache.options[filterOption.name]
+                    // try getting field from root (because already downloaded)
                     const {field,form} = await findField(filterOption.name,root)
                     if (field !== null){
                         fieldData.field = field
@@ -175,6 +176,8 @@ if (Vue) {
                             const parentField = registerParent(field,form)
                             if (parentField.field){
                                 fieldData.parentId = parentField.field.propertyname
+                                // todo get associating form instead of current form and use create promise (to be in //)
+                                // todo use a global refresh on all filters on only one time but with promise
                                 const optionsAsEntries = Object.entries(parentField.field.options)
                                 for (let index = 0; index < optionsAsEntries.length; index++) {
                                     const optionKey = optionsAsEntries[index][0]
