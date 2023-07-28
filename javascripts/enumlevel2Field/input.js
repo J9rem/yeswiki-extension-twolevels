@@ -74,11 +74,78 @@ const enumlevel2Helper = {
             }
             return null
         },
+        createBaseFuncIfNeeded(item,createBaseFunc){
+            let container = null
+            if (item !== null){
+                const spans = item.getElementsByTagName('span')
+                let base = null
+                for (let index = 0; index < spans.length; index++) {
+                    if (base === null && spans.item(index).classList.contains('twolevels-parent-label')){
+                        base = spans.item(index)
+                    }
+                }
+                if (base === null){
+                    ({container} = createBaseFunc(item))
+                } else {
+                    container = base.getElementsByTagName('span')[0]
+                }
+            }
+            return container
+        },
         extractInputCheckboxValue(node){
             let name = node.getAttribute('name')
             let match = name.match(/\[[A-Za-z0-9_\-]+\]$/)
             if (!match) return ""
             return match[0].slice(1,-1)
+        },
+        extractInputCheckboxDragnDropSpan(node){
+            const spans = this.extractInputCheckboxRadioSpans(node)
+            if (spans === null){
+                return null
+            }
+            let listItemTextSpan = null
+            for (let index = 0; index < spans.length; index++) {
+                if (listItemTextSpan === null && spans.item(index).classList.contains('list-item-text')){
+                    listItemTextSpan = spans.item(index)
+                }
+            }
+            return listItemTextSpan
+        },
+        extractInputCheckboxRadioSpans(node){
+            const spans = node.parentNode.getElementsByTagName('span')
+            if (typeof spans !== 'undefined' && spans.length > 0){
+                return spans
+            }
+            return null
+        },
+        extractInputCheckboxLabel(node){
+            const spans = this.extractInputCheckboxRadioSpans(node)
+            if (spans === null){
+                return ''
+            }
+            const subSpans = spans[0].getElementsByTagName('spans')
+            if (subSpans != undefined && subSpans.length > 0){
+                // take first translation if several
+                return subSpans[0].innerText
+            }
+            return spans[0].innerText
+        },
+        extractInputCheckboxDragnDropLabel(node){
+            const listItemTextSpan = this.extractInputCheckboxDragnDropSpan(node)
+            if (listItemTextSpan !== null){
+                const children = listItemTextSpan.childNodes
+                if (children.length > 0){
+                    switch (children[0].nodeType) {
+                        case 3:
+                            return children[0].textContent
+                        case 1:
+                            return children[0].innerText
+                        default:
+                            break
+                    }
+                }
+            }
+            return ''
         },
         extractLinkedObjects(){
             return Object.fromEntries(Object.entries(this.levels2).map(([k,v])=>[k,v.linkedObjectId]))
@@ -246,6 +313,14 @@ const enumlevel2Helper = {
                     linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"radio")
             }
         },
+        getAssociatedCheckboxLabels(parentFieldName,currentValue,parentValuesAssociations){
+            if (!(currentValue in parentValuesAssociations) || parentValuesAssociations[currentValue].length === 0){
+                return []
+            }
+            const values = this.getValues(parentFieldName)
+            const filteredIdx = parentValuesAssociations[currentValue].filter((idx)=>idx in values)
+            return (filteredIdx.length > 0) ? filteredIdx.map((idx)=>[idx,values[idx]]) : []
+        },
         getCheckboxTagValues(node){
             let values = []
             let value = node.value
@@ -298,6 +373,30 @@ const enumlevel2Helper = {
                 values.push(value)
             }
             return values
+        },
+        getValues(parentFieldName){
+            if (!(parentFieldName in this.parents)
+              || !['checkbox','checkboxdraganddrop'].includes(this.parents[parentFieldName].type)
+              || this.parents[parentFieldName].nodes === null){
+                return {}
+            }
+            if (!('values' in this.parents[parentFieldName])){
+                let values = {}
+                this.parents[parentFieldName].nodes.forEach((node)=>{
+                    const value = this.extractInputCheckboxValue(node)
+                    if (value.length > 0){
+                        const label = 
+                            this.parents[parentFieldName].type === 'checkbox'
+                            ? this.extractInputCheckboxLabel(node)
+                            : this.extractInputCheckboxDragnDropLabel(node)
+                        if (label.length > 0){
+                            values[value] = label
+                        }
+                    }
+                })
+                this.parents[parentFieldName].values = values
+            }
+            return this.parents[parentFieldName].values
         },
         importElement(element){
             let propertyName = element.dataset.fieldPropertyname || ''
@@ -371,7 +470,7 @@ const enumlevel2Helper = {
             }
             return await this.updateChildren({[parentFieldName]:this.parents[parentFieldName]})
         },
-        updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput){
+        updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput,parentValuesAssociations){
             let visiblesOptions = []
             this.blockShow(field,'checkbox')
             let nodesForWhatDispatchChangeEvent = nodesForWhatDispatchChangeEventInput
@@ -382,6 +481,7 @@ const enumlevel2Helper = {
                     baseNode.classList.add('enumlevel2-baseNode')
                 }
                 if (secondLevelValues[childId].includes(currentValue)){
+                    this.updateCheckboxLabel(field,node,currentValue,parentValuesAssociations)
                     visiblesOptions.push(node)
                     if (baseNode.classList.contains('enumlevel2-backup')){
                         let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
@@ -408,6 +508,74 @@ const enumlevel2Helper = {
                 visiblesOptions[0].checked = true
             }
             return nodesForWhatDispatchChangeEvent
+        },
+        updateContainerIfNeeded(parentfieldName,currentValue,parentValuesAssociations,callback){
+            const entries = this.getAssociatedCheckboxLabels(parentfieldName,currentValue,parentValuesAssociations)
+            if (entries.length>0 && typeof callback === 'function'){
+                const createBase = (parent) => {
+                    const base = document.createElement('span')
+                    base.classList.add('twolevels-parent-label')
+                    base.appendChild(document.createTextNode(' ('))
+                    const internalContainer = document.createElement('span')
+                    base.appendChild(internalContainer)
+                    base.appendChild(document.createTextNode(')'))
+                    parent.appendChild(base)
+                    return {base,container:internalContainer}
+                }
+                const container = callback(createBase)
+                if (container){
+                    entries.forEach((entry) => {
+                        const children = container.getElementsByTagName('span')
+                        let needToAppend = (
+                                children == undefined 
+                                || children.length === 0
+                            )
+                        if (!needToAppend){
+                            needToAppend = true
+                            for (let index = 0; index < children.length; index++) {
+                                if (needToAppend
+                                    && children.item(index).classList.contains(`twolevels-parent-label-for-${entry[0]}`)){
+                                    needToAppend = false
+                                }
+                            }
+                        }
+                        if (needToAppend){
+                            const newSpan = document.createElement('span')
+                            newSpan.classList.add(`twolevels-parent-label-for-${entry[0]}`)
+                            if (children != undefined 
+                                && children.length > 0){
+                                newSpan.appendChild(document.createTextNode(', '))
+                            }
+                            newSpan.appendChild(document.createTextNode(
+                                entry[1].length > 12
+                                ? entry[1].slice(0,12) + '…'
+                                : entry[1]
+                            ))
+                            container.appendChild(newSpan)
+                        }
+                    })
+                }
+            }
+        },
+        updateCheckboxLabel(field,node,currentValue,parentValuesAssociations){
+            this.updateContainerIfNeeded(field.parentId,currentValue,parentValuesAssociations,(createBaseFunc)=>{
+                let container = null
+                if (field.type === 'checkbox'){
+                    let spans = this.extractInputCheckboxRadioSpans(node)
+                    if (spans !== null && spans.length === 1){
+                        ({container} = createBaseFunc(node.parentNode))
+                        spans = this.extractInputCheckboxRadioSpans(node)
+                        if (spans === null || spans.length === 1){
+                            return null
+                        }
+                    } else {
+                        container = spans[1].getElementsByTagName('span')[0]
+                    }
+                } else if (field.type === 'checkboxdraganddrop'){
+                    container = this.createBaseFuncIfNeeded(this.extractInputCheckboxDragnDropSpan(node),createBaseFunc)
+                }
+                return container
+            })
         },
         updateCheckoxTag(field,secondLevelValues,childId){
             let $node = $(field.node)
@@ -505,9 +673,9 @@ const enumlevel2Helper = {
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.extractLinkedObjects())
-                                        .then(([secondLevelValues,formModified])=>{
-                                            this.updateSecondLevel(secondLevelValues,isInit)
-                                            return [secondLevelValues,formModified]
+                                        .then(([secondLevelValues,formModified,associations])=>{
+                                            this.updateSecondLevel(secondLevelValues,isInit,associations)
+                                            return [secondLevelValues,formModified,associations]
                                         })
                                 },
                                 getEntriesAsync: ()=>{
@@ -522,9 +690,9 @@ const enumlevel2Helper = {
                                     formId,
                                     processFormAsync: async (form)=>{
                                         return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.extractLinkedObjects())
-                                        .then(([secondLevelValues,formModified])=>{
-                                            this.updateSecondLevel(secondLevelValues,isInit)
-                                            return [secondLevelValues,formModified]
+                                        .then(([secondLevelValues,formModified,associations])=>{
+                                            this.updateSecondLevel(secondLevelValues,isInit,associations)
+                                            return [secondLevelValues,formModified,associations]
                                         })
                                     },
                                     getEntriesAsync: ()=>{
@@ -538,7 +706,7 @@ const enumlevel2Helper = {
                 return await twoLevelsHelper.resolvePromises(promisesData)
             }
         },
-        updateRadio(field,secondLevelValues,childId){
+        updateRadio(field,secondLevelValues,childId,parentValuesAssociations){
             let visiblesOptions = []
             this.blockShow(field,'radio')
             let radioBtnToCheck = []
@@ -547,6 +715,7 @@ const enumlevel2Helper = {
                 let currentValue = node.value
                 let baseNode = node.parentNode.parentNode
                 if (secondLevelValues[childId].includes(currentValue)){
+                    this.updateRadioLabel(field,node,currentValue,parentValuesAssociations)
                     visiblesOptions.push(node)
                     let oldValue = ('wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))) ||
                         (!('wasChecked' in node.dataset) && node.dataset.default)
@@ -607,23 +776,40 @@ const enumlevel2Helper = {
                 this.blockHide(field,'radio')
             }
         },
-        updateSecondLevel(secondLevelValues, isInit = false){
+        updateRadioLabel(field,node,currentValue,parentValuesAssociations){
+            this.updateContainerIfNeeded(field.parentId,currentValue,parentValuesAssociations,(createBaseFunc)=>{
+                let container = null
+                let spans = this.extractInputCheckboxRadioSpans(node)
+                if (spans !== null && spans.length === 1){
+                    ({container} = createBaseFunc(node.parentNode))
+                    spans = this.extractInputCheckboxRadioSpans(node)
+                    if (spans === null || spans.length === 1){
+                        return null
+                    }
+                } else {
+                    container = spans[1].getElementsByTagName('span')[0]
+                }
+                return container
+            })
+        },
+        updateSecondLevel(secondLevelValues, isInit = false, associations = {}){
             let nodesForWhatDispatchChangeEvent = []
             for (const childId in secondLevelValues) {
                 let field = this.levels2[childId]
+                let parentValuesAssociations = associations[childId] ?? {}
                 switch (field.type) {
                     case "checkbox":
                     case "checkboxdraganddrop":
-                        nodesForWhatDispatchChangeEvent = this.updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent)
+                        nodesForWhatDispatchChangeEvent = this.updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent,parentValuesAssociations)
                         break
                     case "checkboxtag":
                         this.updateCheckoxTag(field,secondLevelValues,childId)
                         break 
                     case "radio":
-                        this.updateRadio(field,secondLevelValues,childId)
+                        this.updateRadio(field,secondLevelValues,childId,parentValuesAssociations)
                         break
                     case "select":
-                        this.updateSelect(isInit,field,secondLevelValues,childId)
+                        this.updateSelect(isInit,field,secondLevelValues,childId,parentValuesAssociations)
                     default:
                         break
                 }
@@ -631,7 +817,7 @@ const enumlevel2Helper = {
             let event = new Event("change")
             nodesForWhatDispatchChangeEvent.forEach((node)=>{node.dispatchEvent(event)})
         },
-        updateSelect(isInit,field,secondLevelValues,childId){
+        updateSelect(isInit,field,secondLevelValues,childId,parentValuesAssociations){
             let selectOptionsToSelect = []
             this.blockShow(field,'select')
             $(field.node).closest('.control-group.select').show()
@@ -641,6 +827,7 @@ const enumlevel2Helper = {
                 let currentValue = node.value
                 let baseNode = node
                 if (currentValue.length == '' || secondLevelValues[childId].includes(currentValue)){
+                    this.updateSelectLabel(field,node,currentValue,parentValuesAssociations)
                     visiblesOptions.push(node)
                     if (baseNode.classList.contains('enumlevel2-backup')){
                         let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
@@ -667,6 +854,11 @@ const enumlevel2Helper = {
             if (notEmptyOptions.length == 0){
                 this.blockHide(field,'select')
             }
+        },
+        updateSelectLabel(field,node,currentValue,parentValuesAssociations){
+            this.updateContainerIfNeeded(field.parentId,currentValue,parentValuesAssociations,(createBaseFunc)=>{
+                return this.createBaseFuncIfNeeded(node,createBaseFunc)
+            })
         },
         async init(){
             let elements = document.querySelectorAll(".enum-two-level-data")

@@ -172,13 +172,16 @@ const appendReverseParentsFieldsPropertyNamestoParentForm = (form,fieldName,pare
     return forms[formId]
 }
 
-const appendToArrayIfInEntry = (entry,propName,currentArray)=>{
+const appendToArrayIfInEntry = (entry,propName,currentArray,registerAssociation = null)=>{
     if (propName in entry && 
             typeof entry[propName] == "string" && 
             entry[propName].length > 0){ 
         entry[propName].split(',').forEach((value)=>{
             if (!currentArray.includes(value)){
                 currentArray.push(value)
+            }
+            if (typeof registerAssociation === 'function'){
+                registerAssociation(value)
             }
         })
     }
@@ -342,20 +345,29 @@ const getAvailableSecondLevelsValues = async (parentForm,parentField,values,link
     parentForm = appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField,linkedObjectIds)
     return await getParentEntries(values).then(()=>{
         let secondLevelValues = {}
+        let associations = {}
         parentField.childrenIds.forEach((childId)=>{
             secondLevelValues[childId] = []
+            associations[childId] = []
             if (childId in parentForm.childrenFieldsPropertyNames){
                 values.forEach((parentEntryId)=>{
                     if (parentEntryId in entries){
                         let parentEntry = entries[parentEntryId]
                         for (let propName in parentForm.childrenFieldsPropertyNames[childId]){
-                            secondLevelValues[childId] = appendToArrayIfInEntry(parentEntry,propName,secondLevelValues[childId])
+                            secondLevelValues[childId] = appendToArrayIfInEntry(parentEntry,propName,secondLevelValues[childId],(value)=>{
+                                if (!(value in associations[childId])){
+                                    associations[childId][value] = []
+                                }
+                                if (!associations[childId][value].includes(parentEntryId)){
+                                    associations[childId][value].push(parentEntryId)
+                                }
+                            })
                         }
                     }
                 })
             }
         })
-        return [secondLevelValues,parentForm]
+        return [secondLevelValues,parentForm,associations]
     })
 }
 
@@ -490,22 +502,33 @@ const getAvailableSecondLevelsValuesForLists = async (associatingForm,fieldName,
         propNames = associatingForm.reverseChildrenFieldsPropertyNames
     }
     let secondLevelValues = {}
+    let associations = {}
     parentField.childrenIds.forEach((childId)=>{
         if (formData.childId == childId){
             secondLevelValues[childId] = []
+            associations[childId] = {}
             if (childId in propNames){
                 values.forEach((parentValue)=>{
                     if (parentValue in correspondances && childId in correspondances[parentValue]){
+                        const childValues = correspondances[parentValue][childId]
                         secondLevelValues[childId] = [
                                 ...secondLevelValues[childId],
-                                ...correspondances[parentValue][childId]
+                                ...childValues
                             ]
+                            childValues.forEach((value)=>{
+                            if (!(value in associations[childId])){
+                                associations[childId][value] = []
+                            }
+                            if (!associations[childId][value].includes(parentValue)){
+                                associations[childId][value].push(parentValue)
+                            }
+                        })
                     }
                 })
             }
         }
     })
-    return [secondLevelValues,associatingForm]
+    return [secondLevelValues,associatingForm,associations]
 }
 
 const getForm = async (formId) => {
@@ -544,7 +567,7 @@ const createPromise = (promisesData,{formId,processFormAsync,getEntriesAsync,get
     // get form
     promisesData.promises.push(new Promise((resolve,reject)=>{
         getForm(formId).then((form)=>{
-            processFormAsync(form).then(([secondLevelValues,formModified])=>{
+            processFormAsync(form).then(([,formModified,])=>{
                 resolve(formModified)
             })
             .catch((e)=>reject(e))
