@@ -125,7 +125,7 @@ const initEnum2Level = function(){
     textAssociatingField.trigger("change")
 };
 
-function getEnum2LevelField(selectConf,templateHelper,listsMapping){
+function getEnum2LevelField(selectConf,templateHelper,listsMapping,formAndListIds){
   
     const selectConfLocal = {...selectConf}
     delete selectConfLocal.subtype2
@@ -150,53 +150,63 @@ function getEnum2LevelField(selectConf,templateHelper,listsMapping){
 
     return {
         field: {
-        label: _t('TWOLEVELS_ENUM_FIELD_LABEL'),
-        name: "enumlevel2",
-        attrs: { type: "enumlevel2", subtype:"checkbox" },
-        icon: '<i class="fas fa-list-ul"></i>',
+          label: _t('TWOLEVELS_ENUM_FIELD_LABEL'),
+          name: "enumlevel2",
+          attrs: { type: "enumlevel2", subtype:"checkbox" },
+          icon: '<i class="fas fa-list-ul"></i>',
         },
         attributes: {
         ...{
             parentFieldName: {
-            label: _t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL'),
-            value: ""
+              label: _t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_LABEL'),
+              value: ""
             },
             subtype: {
-            label: _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LABEL'),
-            options: {
-                "checkbox": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOX'),
-                "radio": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIO'),
-                "liste": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTE'),
-                "checkboxtags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXTAGS'),
-                "radiotags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOTAGS'),
-                "checkboxdragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXDRAGNDROP'),
-                "checkboxfiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHE'),
-                "radiofiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHE'),
-                "listefiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE'),
-                "checkboxfichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHETAGS'),
-                "radiofichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHETAGS'),
-                "checkboxfichedragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHEDRAGNDROP'),
-            },
+              label: _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LABEL'),
+              options: {
+                  "checkbox": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOX'),
+                  "radio": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIO'),
+                  "liste": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTE'),
+                  "checkboxtags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXTAGS'),
+                  "radiotags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOTAGS'),
+                  "checkboxdragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXDRAGNDROP'),
+                  "checkboxfiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHE'),
+                  "radiofiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHE'),
+                  "listefiche": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_LISTEFICHE'),
+                  "checkboxfichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHETAGS'),
+                  "radiofichetags": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_RADIOFICHETAGS'),
+                  "checkboxfichedragndrop": _t('TWOLEVELS_ENUM_FIELD_SUBTYPE_CHECKBOXFICHEDRAGNDROP'),
+              },
             },
             associatingForm: {
-            label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL'),
-            options: {...{"":""},...formAndListIds.forms},
+              label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_LABEL'),
+              options: {...{"":""},...window.formAndListIds.forms},
             },
             associatingField: {
-            label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FIELDID_LABEL'),
-            value: ''
+              label: _t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FIELDID_LABEL'),
+              value: ''
             },
             dataToSave: {
-            label: 'dataToSave',
-            value: ''
+              label: 'dataToSave',
+              value: ''
             }
         },
         ...selectConfLocal,
         ...{
+          listId: {
+            label: '',
+            options: { ...window.formAndListIds.lists }
+          },
+          formId: {
+            label: '',
+            options: { ...window.formAndListIds.forms }
+          },
+        },
+        ...{
             queries: {
-            label: _t('BAZ_FORM_EDIT_QUERIES_LABEL'),
-            value: "",
-            placeholder: "ex. : checkboxfiche6=PageTag ; cf. https://yeswiki.net/?LierFormulairesEntreEux",
+              label: _t('BAZ_FORM_EDIT_QUERIES_LABEL'),
+              value: "",
+              placeholder: "ex. : checkboxfiche6=PageTag ; cf. https://yeswiki.net/?LierFormulairesEntreEux",
             },
         }
         },
@@ -208,24 +218,24 @@ function getEnum2LevelField(selectConf,templateHelper,listsMapping){
         }
         },
         renderInput(field) {
-        return { 
-            field: `
-            <div class="checkbox-group">
-                <div class="formbuilder-checkbox">
-                <input type="checkbox" id="${field.name}-preview-1" name="${field.name}" value="option-1" checked="checked"/>
-                <label for="${field.name}-preview-1">Option 1</label>
-                <input type="checkbox" id="${field.name}-preview-2" name="${field.name}" value="option-2" checked="checked"/>
-                <label for="${field.name}-preview-2">Option 2</label>
-                </div>
-                <label>Deux niveaux</label>
-            </div>
-            ` ,
-            onRender: function(){
-            initEnum2Level();
-            templateHelper.defineLabelHintForGroup(field,'parentFieldName',_t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT'));
-            templateHelper.defineLabelHintForGroup(field,'associatingForm',_t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_HINT'));
-            },
-        };
+          return { 
+              field: `
+              <div class="checkbox-group">
+                  <div class="formbuilder-checkbox">
+                  <input type="checkbox" id="${field.name}-preview-1" name="${field.name}" value="option-1" checked="checked"/>
+                  <label for="${field.name}-preview-1">Option 1</label>
+                  <input type="checkbox" id="${field.name}-preview-2" name="${field.name}" value="option-2" checked="checked"/>
+                  <label for="${field.name}-preview-2">Option 2</label>
+                  </div>
+                  <label>Deux niveaux</label>
+              </div>
+              ` ,
+              onRender: function(){
+                initEnum2Level();
+                templateHelper.defineLabelHintForGroup(field,'parentFieldName',_t('TWOLEVELS_ENUM_FIELD_PARENTFIELDNAME_HINT'));
+                templateHelper.defineLabelHintForGroup(field,'associatingForm',_t('TWOLEVELS_ENUM_FIELD_ASSOCIATING_FORMID_HINT'));
+              },
+          };
         },
     }
 }
