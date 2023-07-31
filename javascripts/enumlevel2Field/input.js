@@ -396,40 +396,32 @@ const enumlevel2Helper = {
             return this.parents[parentFieldName].values
         },
         importElement(element){
-            let propertyName = element.dataset.fieldPropertyname || ''
-            let parentFieldName = element.dataset.fieldParentFieldname || ''
-            let fieldName = element.dataset.fieldName || ''
-            let associatingFormId = element.dataset.fieldAssociatingFormId || ''
-            let associatingFieldId = element.dataset.fieldAssociatingFieldId || ''
-            let isForm = ('isForm' in element.dataset) ? [1,'1',true,'true'].includes(element.dataset.isForm) : false
-            if (propertyName.length > 0 && parentFieldName.length > 0){
-                this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId,isForm,associatingFieldId}
-                let field = this.findField(propertyName)
+            const fieldDataRaw = element.dataset.field || ''
+            if (fieldDataRaw.length === 0){
+                return
+            }
+            const fieldData = JSON.parse(fieldDataRaw)
+            if (typeof fieldData === 'object' 
+                && 'propertyname' in fieldData
+                && fieldData.propertyname.length > 0
+                && 'parentFieldName' in fieldData
+                && fieldData.parentFieldName.length > 0){
+                this.levels2[fieldData.propertyname] = twoLevelsHelper.formatChildField(fieldData)
+                const childField = this.levels2[fieldData.propertyname]
+                // search field to update `nodes`
+                let field = this.findField(childField.propertyname)
                 if (field && typeof field == "object"){
-                    this.levels2[propertyName].type = field.type
-                    this.levels2[propertyName].node = 'node' in field ? field.node : null 
-                    this.levels2[propertyName].nodes = 'nodes' in field ? field.nodes : null 
-                    this.levels2[propertyName].linkedObjectId = field.linkedObjectId 
-                    if (parentFieldName in this.parents){
-                        this.levels2[propertyName].parentId = parentFieldName
-                        this.parents[parentFieldName].childrenIds = [...this.parents[parentFieldName].childrenIds,propertyName]
-                        this.parents[parentFieldName].isForm = ('isForm' in this.parents[parentFieldName])
-                            ? this.parents[parentFieldName].isForm
-                            : (associatingFormId.length == 0)
-                    } else {
-                        field = this.findField(parentFieldName,associatingFormId)
-                        if (field && typeof field == "object"){
-                            this.parents[parentFieldName] = {
-                                type: field.type,
-                                node: 'node' in field ? field.node : null,
-                                nodes: 'nodes' in field ? field.nodes : null,
-                                linkedObjectId: field.linkedObjectId,
-                                childrenIds: [propertyName],
-                                isForm: (associatingFormId.length == 0),
-                            }
-                            this.levels2[propertyName].parentId = parentFieldName
-                        }
-                    }
+                    childField.type = field.type
+                    childField.node = 'node' in field ? field.node : null 
+                    childField.nodes = 'nodes' in field ? field.nodes : null 
+                    childField.linkedObjectId = field.linkedObjectId 
+                    twoLevelsHelper.formatParentField(
+                        this.parents,
+                        childField,
+                        () => this.findField(fieldData.parentFieldName,fieldData.associatingFormId)
+                    )
+                } else {
+                    childField.type = '' // deactivate
                 }
             }
         },

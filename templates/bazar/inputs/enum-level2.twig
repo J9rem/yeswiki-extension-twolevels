@@ -6,13 +6,8 @@
 {{ include_css("tools/twolevels/styles/enumlevel2Field.css") }}
 
 <span 
-    class="enum-two-level-data" 
-    data-field-propertyname="{{field.propertyname}}"
-    data-field-parent-fieldname="{{field.parentFieldName}}"
-    data-field-name="{{field.name}}"
-    data-field-associating-form-id="{{field.associatingFormId}}"
-    data-field-associating-field-id="{{field.associatingFieldId}}"
-    data-is-form="{{ (field.associatingFormId == field.linkedObjectName)|json_encode }}"
+    class="enum-two-level-data"
+    data-field="{{ field|json_encode }}"
 ></span>
 
 {{ include_javascript("tools/twolevels/javascripts/enumlevel2Field/input.js",false,true) }}

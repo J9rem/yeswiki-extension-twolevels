@@ -203,6 +203,47 @@ const extractLinkedObjects = (data) => {
     return Object.fromEntries(Object.entries(data).map(([k,v])=>[k,v.linkedObjectId]))
 }
 
+const formatChildField = (field) => {
+    return {
+        parentFieldName: field.parentFieldName || '',
+        fieldName: field.name || '',
+        associatingFormId: field.associatingFormId || '',
+        associatingFieldId: field.associatingFieldId || '',
+        isForm: (field.associatingFormId == field.linkedObjectName),
+        field,
+        linkedObjectId: field.linkedObjectName || '',
+        type: field.type || '',
+        parentId: field.parentFieldName || '',
+        propertyname: field.propertyname
+    }
+}
+
+const formatParentField = (parentsContainer,childField,findFieldFunction) => {
+    if (childField.parentFieldName.length > 0){
+        if (!(childField.parentFieldName in parentsContainer)){
+            if (typeof findFieldFunction === 'function'){
+                const field = findFieldFunction()
+                if (typeof field === "object" && field !== null){
+                    parentsContainer[childField.parentFieldName] = {
+                        type: field.type,
+                        node: 'node' in field ? field.node : null,
+                        nodes: 'nodes' in field ? field.nodes : null,
+                        linkedObjectId: field.linkedObjectId,
+                        childrenIds: [],
+                        isForm: (childField.associatingFormId.length == 0),
+                    }
+                }
+            }
+        }
+        if (childField.parentFieldName in parentsContainer){
+            const parentField = parentsContainer[childField.parentFieldName]
+            if (!parentField.childrenIds.includes(childField.propertyname)){
+                parentField.childrenIds.push(childField.propertyname)
+            }
+        }
+    }
+}
+
 const manageInternalEvents = async(id,eventPrefix,loadingCacheName,asynFunc)=>{
     let p = new Promise((resolve,reject)=>{
         addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve())
@@ -609,10 +650,11 @@ const resolvePromises = async (promisesData) => {
 
 export default {
     createPromise,
+    formatChildField,
+    formatParentField,
     getAllEntries,
     getAvailableSecondLevelsValues,
     getAvailableSecondLevelsValuesForLists,
-    getForm,
     getParentEntries,
     initPromisesData,
     resolvePromises

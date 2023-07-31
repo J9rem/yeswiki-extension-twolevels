@@ -80,59 +80,6 @@ if (Vue) {
         }
         return refreshOptionCache.ids
     }
-    const findField = async (searchedPropertyName,root) => {
-        const formsIds = getSanitizedIds(root)
-        let form = null
-        let field = null
-        // async some
-        for (let index = 0; index < formsIds.length; index++) {
-            if (form === null){
-                form = await twoLevelsHelper.getForm(formsIds[index]).catch((e)=>{
-                    console.error(e)
-                    return {}
-                })
-                if (!('prepared' in form)){
-                    form = null
-                } else {
-                    if (!form.prepared.some((fieldFromForm)=>{
-                        if (field === null && 'propertyname' in fieldFromForm && fieldFromForm.propertyname == searchedPropertyName){
-                            field = fieldFromForm
-                        }
-                        return (field !== null)
-                    })){
-                        form = null
-                    }
-                }
-            }
-        }
-        return {field,form}
-    }
-    const registerParent = (field,form) => {
-        if (!(field.parentFieldName in refreshOptionCache.parents)){
-            let searchField = null
-            form.prepared.some((fieldFromForm)=>{
-                if ('propertyname' in fieldFromForm 
-                    && (fieldFromForm.propertyname === field.parentFieldName
-                     || fieldFromForm.name === field.parentFieldName)){
-                    searchField = fieldFromForm
-                    return true
-                }
-                return false
-            })
-            refreshOptionCache.parents[field.parentFieldName] = {
-                field: searchField,
-                childrenIds: [],
-                type: searchField.type ?? '',
-                linkedObjectId: searchField.linkedObjectName ?? '',
-                secondLevelValues:{}
-            }
-        }
-        const fieldData = refreshOptionCache.parents[field.parentFieldName]
-        if (!fieldData.childrenIds.includes(field.propertyname)){
-            fieldData.childrenIds.push(field.propertyname)
-        }
-        return fieldData
-    }
     const extractFormIdData = (fieldName,parentField) => {
         if (!('listOfAssociatingForms' in parentField)){
             parentField.listOfAssociatingForms = {}
@@ -152,70 +99,119 @@ if (Vue) {
         })
         return parentField.listOfAssociatingForms[fieldName]
     }
-    const refreshOptionAsync = async (filterOption,root) => {
-        try {
-            if (root.params.intrafiltersmode === 'sublevel'){
-                if (!(filterOption.name in refreshOptionCache.options)){
-                    // start refresh
-                    refreshOptionCache.options[filterOption.name] = {
-                        status: 'refreshing',
-                        linkedObjectId: '',
-                        associations: {}
-                    }
-                    const fieldData = refreshOptionCache.options[filterOption.name]
-                    // try getting field from root (because already downloaded)
-                    const {field,form} = await findField(filterOption.name,root)
-                    if (field !== null){
-                        fieldData.field = field
-                        fieldData.type = field.type
-                        fieldData.linkedObjectId = field.linkedObjectName
-                        if ('parentFieldName' in field && field.parentFieldName.length > 0){
-                            fieldData.associatingFormId = field.associatingFormId
-                            fieldData.associatingFieldId = field.associatingFieldId
-                            fieldData.isForm = (field.associatingFormId.length === 0)
-                            const parentField = registerParent(field,form)
-                            if (parentField.field){
-                                fieldData.parentId = parentField.field.propertyname
-                                // todo get associating form instead of current form and use create promise (to be in //)
-                                // todo use a global refresh on all filters on only one time but with promise
-                                const optionsAsEntries = Object.entries(parentField.field.options)
-                                for (let index = 0; index < optionsAsEntries.length; index++) {
-                                    const optionKey = optionsAsEntries[index][0]
-                                    // const optionVal = optionsAsEntries[index][1]
-                                    const [secondLevelValues,,associations] = (field.type.match(/fiche$/))
-                                        ? await twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,[optionKey],refreshOptionCache.options)
-                                        : await twoLevelsHelper.getAvailableSecondLevelsValuesForLists(
-                                            form,
-                                            parentField.field.propertyname,
-                                            parentField,
-                                            [optionKey],
-                                            extractFormIdData(filterOption.name,parentField),
-                                            refreshOptionCache.options
-                                        )
-                                    parentField.secondLevelValues[filterOption.name] = secondLevelValues[filterOption.name]
-                                    Object.entries(associations[filterOption.name]).forEach(([val,parentValue])=>{
-                                        if (!(val in fieldData.associations)){
-                                            fieldData.associations[val] = []
-                                        }
-                                        if (!fieldData.associations[val].includes(parentValue)){
-                                            fieldData.associations[val].push(parentValue)
-                                        }
+    const updateSecondLevelValues = (childField,parentField,secondLevelValues,formModified,associations) =>{
+        parentField.secondLevelValues[filterOption.name] = secondLevelValues[filterOption.name]
+        Object.entries(associations[filterOption.name]).forEach(([val,parentValue])=>{
+            if (!(val in childField.associations)){
+                childField.associations[val] = []
+            }
+            if (!childField.associations[val].includes(parentValue)){
+                childField.associations[val].push(parentValue)
+            }
+        })
+    }
+    const refreshOption = (filterOption,promisesData,root) => {
+        // start refresh
+        refreshOptionCache.options[filterOption.name] = {
+            status: 'refreshing',
+            linkedObjectId: '',
+            associations: {}
+        }
+        const field = root.fieldInfo(filterOption.name)
+        if (field !== null){
+            refreshOptionCache.options[filterOption.name] = {
+                ...refreshOptionCache.options[filterOption.name],
+                ...twoLevelsHelper.formatChildField(field)
+            }
+            const childField = refreshOptionCache.options[filterOption.name]
+            if ('parentFieldName' in childField && childField.parentFieldName.length > 0){
+                twoLevelsHelper.formatParentField(
+                    refreshOptionCache.parents,
+                    childField,
+                    ()=>root.fieldInfo(childField.parentFieldName)
+                )
+                if (childField.parentFieldName in refreshOptionCache.parents){
+                    const parentField = refreshOptionCache.parents[childField.parentFieldName]
+                    parentField.secondLevelValues = {}
+                    const optionsAsEntries = Object.entries(parentField.field.options)
+                    for (let index = 0; index < optionsAsEntries.length; index++) {
+                        const optionKey = optionsAsEntries[index][0]
+                        const values = [optionKey]
+                        if (parentField.isForm){
+                            twoLevelsHelper.createPromise(promisesData,{
+                                formId: parentField.linkedObjectId,
+                                processFormAsync: async (form)=>{
+                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache.options)
+                                        .then(([secondLevelValues,formModified,associations])=>{
+                                            updateSecondLevelValues(childField,parentField,secondLevelValues,formModified,associations)
+                                            return [secondLevelValues,formModified,associations]
+                                        })
+                                },
+                                getEntriesAsync: ()=>{
+                                    return twoLevelsHelper.getParentEntries(values)
+                                },
+                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`}
+                            )
+                        } else {
+                            const formIdData = extractFormIdData(filterOption.name,parentField)
+                            const formId = formIdData.id
+                            twoLevelsHelper.createPromise(promisesData,{
+                                formId,
+                                processFormAsync: async (form)=>{
+                                    return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(
+                                        form,
+                                        parentField.field.propertyname,
+                                        parentField,
+                                        values,
+                                        formIdData,
+                                        refreshOptionCache.options
+                                    )
+                                    .then(([secondLevelValues,formModified,associations])=>{
+                                        updateSecondLevelValues(childField,parentField,secondLevelValues,formModified,associations)
+                                        return [secondLevelValues,formModified,associations]
                                     })
-                                    // todo refresh entries if somethinf changes
-                                }
-                            }
+                                },
+                                getEntriesAsync: ()=>{
+                                    return twoLevelsHelper.getAllEntries(formId)
+                                },
+                                getEntriesLabel: `getting all entries of form ${formId}`})
                         }
                     }
-                    fieldData.status = 'done'
                 }
             }
+        }
+    }
+    const refreshOptionsAsync = async (root) => {
+        try {
+            if (root.params.intrafiltersmode !== 'sublevel'){
+                return
+            }
+            const filters = root.filters // TODO check if get computedFilters
+            let promisesData = twoLevelsHelper.initPromisesData()
+            for (const filterId in filters) {
+                if (Object.hasOwnProperty.call(filters, filterId)) {
+                    const filter = filters[filterId]
+                    filter.list.forEach((filterOption)=>{
+                        if (!(filterOption.name in refreshOptionCache.options)){
+                            refreshOption(filterOption,promisesData,root)
+                        }
+                    })
+                }
+            }
+            await twoLevelsHelper.resolvePromises(promisesData).then(()=>{
+                Object.keys(refreshOptionCache.options).forEach((k)=>{
+                    refreshOptionCache.options[k].status = 'done'
+                    // todo only update the right ones
+                })
+            })
+            
+            // todo refresh entries if something changes
         } catch (error) {
             console.error(error)
         }
     }
 
     Vue.prototype.isDisplayedFilterOption = function(filterOption,root){
-        refreshOptionAsync(filterOption,root)
         return root.params.autohidefilter === "false" ||
             (!canShowAnd(root) && filterOption.checked) 
             || (filterOption.hide !== true && filterOption.nb > 0)
@@ -269,6 +265,7 @@ if (Vue) {
         `
     });
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
+        refreshOptionsAsync(root)
         const modeThanOneCheckedFiltersName = getCheckedFiltersWithMoreThanOne(root)
         for(let fieldName in root.filters) {
             let availableEntriesForThisFilter = root.searchedEntries;
