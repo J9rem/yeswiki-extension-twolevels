@@ -70,10 +70,13 @@ trait ActionsBuilderServiceCommon
                         'bazarcarto',
                         'bazarcalendar',
                         'bazarcard',
+                        'bazartableau',
+                        'bazarmapandtable',
                     ],
                     'options' => [
                         'or' => _t('TWOLEVELS_INTRAFILTERSMODE_OR'),
                         'and' => _t('TWOLEVELS_INTRAFILTERSMODE_AND'),
+                        'sublevel' => _t('TWOLEVELS_INTRAFILTERSMODE_SUBLEVEL'),
                     ]
                 ];
                 $newProps['autohidefilter'] = [
@@ -86,6 +89,8 @@ trait ActionsBuilderServiceCommon
                         'bazarcarto',
                         'bazarcalendar',
                         'bazarcard',
+                        'bazartableau',
+                        'bazarmapandtable',
                     ]
                 ];
                 foreach ($previousProperties as $key => $content) {

@@ -211,11 +211,11 @@ function getEnum2LevelField(selectConf,templateHelper,listsMapping,formAndListId
         }
         },
         attributesMapping: {
-        ...listsMapping,
-        ...{
-            3: "dataToSave",
-            7: "subtype"
-        }
+          ...listsMapping,
+          ...{
+              3: "dataToSave",
+              7: "subtype"
+          }
         },
         renderInput(field) {
           return { 

@@ -6,6 +6,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+import twoLevelsHelper from '../twolevels.js'
 
 // create a new Event `propChange`
 document.addEventListener('DOMContentLoaded',()=>{
@@ -28,167 +29,11 @@ document.addEventListener('DOMContentLoaded',()=>{
 const enumlevel2Helper = {
     data(){
         return {
-            allEntriesCache: {},
-            correspondances: {},
             levels2: {},
-            entries: {},
-            eventsListeners: {},
             parents: {},
-            forms: {},
-            loadingAllEntries: [],
-            loadingEntries: [],
-            loadingForms: [],
-            registeringCorrespondances: []
         }
     },
     methods: {
-        addEvent(eventName, listener, once = false){
-            if (typeof eventName == "string"){
-                if (!(eventName in this.eventsListeners)){
-                    this.eventsListeners[eventName] = []
-                }
-                this.eventsListeners[eventName] = [
-                    ...this.eventsListeners[eventName],
-                    ...[{listener, once, triggered: false}]
-                ]
-            }
-        },
-        addEventOnce(eventName, listener){
-            this.addEvent(eventName,listener,true)
-        },
-        appendChildrenFieldsPropertyNamestoParentForm(form,parentField){
-            const formId = form.bn_id_nature
-            if (!('childrenFieldsPropertyNames' in this.forms[formId])){
-                this.forms[formId].childrenFieldsPropertyNames = {}
-            }
-            parentField.childrenIds.forEach((childId)=>{
-                if (!(childId in this.forms[formId].childrenFieldsPropertyNames)){
-                    this.forms[formId].childrenFieldsPropertyNames[childId] = {}
-                    let childLinkedObjectId= this.levels2[childId].linkedObjectId
-                    if (childLinkedObjectId.length > 0){
-                        let prepared = (Array.isArray(this.forms[formId].prepared))
-                            ? this.forms[formId].prepared
-                            : (
-                                typeof this.forms[formId].prepared == "object"
-                                ? Object.values(this.forms[formId].prepared)
-                                : []
-                            )
-    
-                        prepared.forEach((field)=> {
-                            if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                                .includes(field.type) && field.linkedObjectName == childLinkedObjectId){
-                                this.forms[formId].childrenFieldsPropertyNames[childId][field.propertyname] = field
-                            }
-                        })
-                    }
-                }
-            })
-            return this.forms[formId]
-        },
-        appendParentsFieldsPropertyNamestoParentForm(form,fieldName,parentField){
-            const formId = form.bn_id_nature
-            if (!('parentsFieldsPropertyNames' in this.forms[formId])){
-                form.parentsFieldsPropertyNames = {}
-            }
-
-            if (fieldName && fieldName.length > 0 && 
-                !(fieldName in this.forms[formId].parentsFieldsPropertyNames)){
-                    this.forms[formId].parentsFieldsPropertyNames[fieldName] = {}
-                let prepared = (Array.isArray(this.forms[formId].prepared))
-                    ? this.forms[formId].prepared
-                    : (
-                        typeof this.forms[formId].prepared == "object"
-                        ? Object.values(this.forms[formId].prepared)
-                        : []
-                    )
-                const isList = (type) => {
-                    return ["checkbox","radio","liste"].includes(type)
-                }
-                const isEntry = (type) => {
-                    return ["checkboxfiche","radiofiche","listefiche"].includes(type)
-                }
-                const isEnum2Level = (field,wantedType = '') => {
-                    return field.type == "enumlevel2" && (
-                        wantedType == '' || (
-                            'displayMethod' in field && (
-                            (wantedType == 'list')
-                            ? isList(field.displayMethod)
-                            : isEntry(field.displayMethod)
-                        ))
-                    )
-                }
-                const isEnum = (field) => {
-                    return isList(field.type) || isEntry(field.type) || isEnum2Level(field)
-                }
-                prepared.forEach((field)=> {
-                    const isEnumList = isList(field.type) || isEnum2Level(field,'list')
-                    if ((isEnum(field) && field.linkedObjectName == parentField.linkedObjectId) ||
-                        (isEnumList && parentField.linkedObjectId.slice(0,field.linkedObjectName.length) == field.linkedObjectName)){
-                            this.forms[formId].parentsFieldsPropertyNames[fieldName][field.propertyname] = field
-                    }
-                })
-            }
-            return this.forms[formId]
-        },
-        appendReverseChildrenFieldsPropertyNamestoParentForm(form,parentField){
-            const formId = form.bn_id_nature
-            if (!('reverseChildrenFieldsPropertyNames' in this.forms[formId])){
-                this.forms[formId].reverseChildrenFieldsPropertyNames = {}
-            }
-            parentField.childrenIds.forEach((childId)=>{
-                if (!(childId in this.forms[formId].reverseChildrenFieldsPropertyNames)){
-                    this.forms[formId].reverseChildrenFieldsPropertyNames[childId] = {'id_fiche':'id_fiche'}
-                }
-            })
-            return this.forms[formId]
-        },
-        appendReverseParentsFieldsPropertyNamestoParentForm(form,fieldName,parentField){
-            const formId = form.bn_id_nature
-            if (!('reverseParentsFieldsPropertyNames' in this.forms[formId])){
-                this.forms[formId].reverseParentsFieldsPropertyNames = {}
-            }
-            const childId = parentField.linkedObjectId
-            if (childId.length > 0 && !(fieldName in this.forms[formId].reverseParentsFieldsPropertyNames)){
-                this.forms[formId].reverseParentsFieldsPropertyNames[fieldName] = {}
-                let prepared = (Array.isArray(this.forms[formId].prepared))
-                    ? this.forms[formId].prepared
-                    : (
-                        typeof this.forms[formId].prepared == "object"
-                        ? Object.values(this.forms[formId].prepared)
-                        : []
-                    )
-
-                prepared.forEach((field)=> {
-                    if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                        .includes(field.type) && field.linkedObjectName == childId){
-                            this.forms[formId].reverseParentsFieldsPropertyNames[fieldName][field.propertyname] = field
-                    }
-                })
-            }
-            return this.forms[formId]
-        },
-        appendToArrayIfInEntry(entry,propName,currentArray){
-            if (propName in entry && 
-                    typeof entry[propName] == "string" && 
-                    entry[propName].length > 0){ 
-                entry[propName].split(',').forEach((value)=>{
-                    if (!currentArray.includes(value)){
-                        currentArray.push(value)
-                    }
-                })
-            }
-            return currentArray
-        },
-        assertIsRegularFormId(formId){
-            if (typeof formId != "string" || formId.length == 0 || Number(formId) < 1){
-                throw `'formId' as parameter as 'getForm' should be a not empty string representing a postive integer`
-            }
-        },
-        assertIsRegularEntryId(entryId){
-            if (typeof entryId != "string" || entryId.length == 0 || String(Number(entryId)) === entryId){
-                throw `'entryId' as parameter as 'assertIsRegularEntryId' should be a not empty string and not representing a form number`
-            }
-        },
         blockCommon(field,className,callback){
             const parentBlock = (className == 'select')
                 ? this.closest(field.node,['control-group',className])
@@ -215,11 +60,6 @@ const enumlevel2Helper = {
                 parentBlock.style.display = null
             })
         },
-        cleanEvent(eventName){
-            this.eventsListeners[eventName] = this.eventsListeners[eventName].filter((eventData)=>{
-                return !eventData.once || !eventData.triggered
-            })
-        },
         closest(node,classNames){
             let curParentNode = node
             for (let index = 0; index < 100; index++) {
@@ -234,56 +74,85 @@ const enumlevel2Helper = {
             }
             return null
         },
-        createPromise(promisesData,{formId,processFormAsync,getEntriesAsync,getEntriesLabel,isInit}){
-            // get form
-            promisesData.promises.push(new Promise((resolve,reject)=>{
-                this.getForm(formId).then((form)=>{
-                    processFormAsync(form).then(([secondLevelValues,formModified])=>{
-                        this.updateSecondLevel(secondLevelValues,isInit)
-                        resolve(formModified)
-                    })
-                    .catch((e)=>reject(e))
-                })
-                .catch((e)=>{
-                    reject(e)
-                })
-            }))
-            promisesData.promisesLabel.push(`getting form ${formId}`)
-            // start getting entries in parallel of form
-            promisesData.promises.push(
-                new Promise((resolve,reject)=>{
-                    getEntriesAsync().then((entries)=>{
-                        resolve(entries)
-                    })
-                    .catch((e)=>{
-                        reject(e)
-                    })
-                })
-            )
-            promisesData.promisesLabel.push(getEntriesLabel)
-        },
-        dispatchEvent(eventName, param = undefined){
-            if (typeof eventName == "string"){
-                if (eventName in this.eventsListeners){
-                    this.eventsListeners[eventName].forEach((eventData,idx)=>{
-                        if (!eventData.once || !eventData.triggered){
-                            this.eventsListeners[eventName][idx].triggered = true
-                            if (param != undefined){
-                                eventData.listener(param)
-                            } else {
-                                eventData.listener()
-                            }
-                        }
-                    })
-                    this.cleanEvent(eventName)
+        createBaseFuncIfNeeded(item,createBaseFunc){
+            let container = null
+            if (item !== null){
+                const spans = item.getElementsByTagName('span')
+                let base = null
+                for (let index = 0; index < spans.length; index++) {
+                    if (base === null && spans.item(index).classList.contains('twolevels-parent-label')){
+                        base = spans.item(index)
+                    }
+                }
+                if (base === null){
+                    ({container} = createBaseFunc(item))
+                } else {
+                    container = base.getElementsByTagName('span')[0]
                 }
             }
+            return container
         },
         extractInputCheckboxValue(node){
             let name = node.getAttribute('name')
             let match = name.match(/\[[A-Za-z0-9_\-]+\]$/)
             if (!match) return ""
             return match[0].slice(1,-1)
+        },
+        extractInputCheckboxDragnDropSpan(node){
+            const spans = this.extractInputCheckboxRadioSpans(node)
+            if (spans === null){
+                return null
+            }
+            let listItemTextSpan = null
+            for (let index = 0; index < spans.length; index++) {
+                if (listItemTextSpan === null && spans.item(index).classList.contains('list-item-text')){
+                    listItemTextSpan = spans.item(index)
+                }
+            }
+            return listItemTextSpan
+        },
+        extractInputCheckboxRadioSpans(node){
+            const spans = node.parentNode.getElementsByTagName('span')
+            if (typeof spans !== 'undefined' && spans.length > 0){
+                return spans
+            }
+            return null
+        },
+        extractInputCheckboxLabel(node){
+            const spans = this.extractInputCheckboxRadioSpans(node)
+            if (spans === null){
+                return ''
+            }
+            const subSpans = spans[0].getElementsByTagName('spans')
+            if (subSpans != undefined && subSpans.length > 0){
+                // take first translation if several
+                return subSpans[0].innerText
+            }
+            return spans[0].innerText
+        },
+        extractInputCheckboxDragnDropLabel(node){
+            const listItemTextSpan = this.extractInputCheckboxDragnDropSpan(node)
+            if (listItemTextSpan !== null){
+                const children = listItemTextSpan.childNodes
+                if (children.length > 0){
+                    switch (children[0].nodeType) {
+                        case 3:
+                            return children[0].textContent
+                        case 1:
+                            return children[0].innerText
+                        default:
+                            break
+                    }
+                }
+            }
+            return ''
+        },
+        extractIdForCheckbox(node){
+            const id = $(node).prop('id')
+            if (id == undefined || id.lengh === 0){
+                throw new Error('id is not defined')
+            }
+            return id.replace(/\[.*$/,'')
         },
         extractLinkedObjectIdForCheckox(node, mode = "group-checkbox-", type = "checkbox"){
             let linkedObjectId = ""
@@ -366,6 +235,7 @@ const enumlevel2Helper = {
             return (inputsNodes.length == 0) ? null : {
                 type: "checkbox",
                 nodes: inputsNodes,
+                propertyname: this.extractIdForCheckbox($(filteredElements[0]).find('input')[0]), // keep only the first one
                 linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0]) // keep only the first one
             }
         },
@@ -395,6 +265,7 @@ const enumlevel2Helper = {
             return (inputsNodes.length == 0) ? null : {
                 type: "checkboxdraganddrop",
                 nodes: inputsNodes,
+                propertyname: this.extractIdForCheckbox(filteredElements[0]), // keep only the first one
                 linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0],"group-") // keep only the first one
             }
         },
@@ -408,6 +279,7 @@ const enumlevel2Helper = {
             return {
                     type: "checkboxtag",
                     node: elements[0],
+                    propertyname: $(elements[0]).prop('name'), // keep only the first one
                     linkedObjectId: linkedObjectId
                 }
         },     
@@ -430,6 +302,7 @@ const enumlevel2Helper = {
                 : {
                     type: "select",
                     node: elements[0],
+                    propertyname: $(elements[0]).prop('name'), // keep only the first one
                     linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"liste")
                 }
         },
@@ -445,98 +318,17 @@ const enumlevel2Helper = {
             return {
                     type: "radio",
                     nodes: inputsNodes,
+                    propertyname: $(elements[0]).prop('name'), // keep only the first one
                     linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"radio")
             }
         },
-        getAllEntries: async function (formId){
-            this.assertIsRegularFormId(formId)
-            if (formId in this.allEntriesCache){
-                return this.allEntriesCache[formId]
-            } else {
-                return await this.getData(wiki.url(`?api/forms/${formId}/entries`),formId,'getAllEntries','loadingAllEntries',(responseDecoded)=>{
-                        if (typeof responseDecoded == "object"||
-                            Array.isArray(responseDecoded)){
-                                
-                            let entries = (typeof responseDecoded == "object")
-                                ? Object.values(responseDecoded)
-                                : responseDecoded
-                            entries = entries.filter((e)=>{
-                                return typeof e.id_fiche === "string" &&
-                                    typeof e.id_typeannonce === "string" &&
-                                    typeof e.bf_titre === "string"
-                            })
-                            entries.forEach((e)=>{
-                                if (!(e.id_fiche in this.entries)){
-                                    this.entries[e.id_fiche] = e
-                                }
-                            })
-                            this.allEntriesCache[formId] = entries
-                            return true
-                        } else {
-                            return false
-                        }
-                    }).then(()=>{
-                        if (formId in this.allEntriesCache){
-                            return this.allEntriesCache[formId]
-                        } else {
-                            throw `allEntriesCache '${formId}' not found in 'this.allEntriesCache (${JSON.stringify(Object.keys(this.allEntriesCache))})`
-                        }
-                    })
-                    .catch((e)=>{throw `error when getting all Entries for '${formId}'`+(e!=undefined ? ` : ${(e)}`:'')})
+        getAssociatedCheckboxLabels(parentFieldName,currentValue,parentValuesAssociations){
+            if (!(currentValue in parentValuesAssociations) || parentValuesAssociations[currentValue].length === 0){
+                return []
             }
-        },
-        async getAvailableSecondLevelsValues(parentForm,parentField,values){
-            parentForm = this.appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField)
-            return await this.getParentEntries(values).then(()=>{
-                let secondLevelValues = {}
-                parentField.childrenIds.forEach((childId)=>{
-                    secondLevelValues[childId] = []
-                    if (childId in parentForm.childrenFieldsPropertyNames){
-                        values.forEach((parentEntryId)=>{
-                            if (parentEntryId in this.entries){
-                                let parentEntry = this.entries[parentEntryId]
-                                for (let propName in parentForm.childrenFieldsPropertyNames[childId]){
-                                    secondLevelValues[childId] = this.appendToArrayIfInEntry(parentEntry,propName,secondLevelValues[childId])
-                                }
-                            }
-                        })
-                    }
-                })
-                return [secondLevelValues,parentForm]
-            })
-        },
-        async getAvailableSecondLevelsValuesForLists(associatingForm,fieldName,parentField,values,formData){
-            const reverseMode = formData.isForm
-            let correspondances = null
-            let propNames = {}
-            if (!reverseMode){
-                associatingForm = this.appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField)
-                associatingForm = this.appendParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
-                correspondances = await this.getCorrespondances(associatingForm,fieldName,parentField)
-                propNames = associatingForm.childrenFieldsPropertyNames
-            } else {
-                associatingForm = this.appendReverseParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
-                associatingForm = this.appendReverseChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField)
-                correspondances = await this.getCorrespondancesReverse(associatingForm,fieldName,formData.wantedFieldId,formData.childId)
-                propNames = associatingForm.reverseChildrenFieldsPropertyNames
-            }
-            let secondLevelValues = {}
-            parentField.childrenIds.forEach((childId)=>{
-                if (formData.childId == childId){
-                    secondLevelValues[childId] = []
-                    if (childId in propNames){
-                        values.forEach((parentValue)=>{
-                            if (parentValue in correspondances && childId in correspondances[parentValue]){
-                                secondLevelValues[childId] = [
-                                        ...secondLevelValues[childId],
-                                        ...correspondances[parentValue][childId]
-                                    ]
-                            }
-                        })
-                    }
-                }
-            })
-            return [secondLevelValues,associatingForm]
+            const values = this.getValues(parentFieldName)
+            const filteredIdx = parentValuesAssociations[currentValue].filter((idx)=>idx in values)
+            return (filteredIdx.length > 0) ? filteredIdx.map((idx)=>[idx,values[idx]]) : []
         },
         getCheckboxTagValues(node){
             let values = []
@@ -557,202 +349,6 @@ const enumlevel2Helper = {
                 }
             })
             return values
-        },
-        async getCorrespondances(associatingForm,fieldName){
-            return await this.getCorrespondancesCommon({
-                associatingForm,
-                fieldName,
-                getParentsAndChildren:(tmp,entry)=>{
-                    for (const propertyName in associatingForm.parentsFieldsPropertyNames[fieldName]) {
-                        tmp.parents = this.appendToArrayIfInEntry(entry,propertyName,tmp.parents)
-                    }
-                    for (const childId in associatingForm.childrenFieldsPropertyNames) {
-                        tmp.children[childId] = []
-                        for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
-                            tmp.children[childId] = this.appendToArrayIfInEntry(entry,propertyName,tmp.children[childId])
-                        }
-                    }
-                }
-            })
-        },
-        async getCorrespondancesCommon({associatingForm,fieldName,getParentsAndChildren}){
-            if (associatingForm.bn_id_nature in this.correspondances && fieldName in this.correspondances[associatingForm.bn_id_nature]){
-                return this.correspondances[associatingForm.bn_id_nature][fieldName]
-            } else {
-                return await this.getAllEntries(associatingForm.bn_id_nature)
-                    .then((entries)=>this.registerCorrespondances(associatingForm.bn_id_nature,fieldName,async ()=>{
-                            let entries = this.allEntriesCache[associatingForm.bn_id_nature] || []
-                            if (entries.length == 0){
-                                console.log(`entries should not be empty`)
-                            }
-                            let correspondances = 
-                                (associatingForm.bn_id_nature in this.correspondances && 
-                                    fieldName in this.correspondances[associatingForm.bn_id_nature])
-                                ? this.correspondances[associatingForm.bn_id_nature][fieldName]
-                                : []
-                            entries.forEach((e)=>{
-                                let tmp = {
-                                    parents: [],
-                                    children: {}
-                                }
-                                getParentsAndChildren(tmp,e)
-                                tmp.parents.forEach((p)=>{
-                                    if (!(p in correspondances)){
-                                        correspondances[p] = {}
-                                    }
-                                    for (const childId in tmp.children) {
-                                        if (!(childId in correspondances[p])){
-                                            correspondances[p][childId] = []
-                                        }
-                                        tmp.children[childId].forEach((val)=>{
-                                            if (!correspondances[p][childId].includes(val)){
-                                                correspondances[p][childId] = [...correspondances[p][childId],val]
-                                            }
-                                        })
-                                    }
-                                    
-                                })
-                            })
-                            if (!(associatingForm.bn_id_nature in this.correspondances)){
-                                this.correspondances[associatingForm.bn_id_nature] = {}
-                            }
-                            this.correspondances[associatingForm.bn_id_nature][fieldName] = correspondances
-                            return correspondances
-                        })
-                    )
-            }
-        },
-        async getCorrespondancesReverse(associatingForm,fieldName,wantedFieldId = '',wantedchildId = ''){
-            
-            return await this.getCorrespondancesCommon({
-                associatingForm,
-                fieldName,
-                getParentsAndChildren:(tmp,entry)=>{
-                    if (typeof wantedFieldId == 'string' && wantedFieldId.length > 0){
-                        const foundFields = Object.keys(associatingForm.reverseParentsFieldsPropertyNames[fieldName]).filter((k)=>{
-                            return k == wantedFieldId || associatingForm.reverseParentsFieldsPropertyNames[fieldName][k].name == wantedFieldId
-                        })
-                        foundFields.forEach((k)=>{
-                            tmp.parents = this.appendToArrayIfInEntry(entry,k,tmp.parents)
-                        })
-                    } else {
-                        for (const propertyName in associatingForm.reverseParentsFieldsPropertyNames[fieldName]) {
-                            tmp.parents = this.appendToArrayIfInEntry(entry,propertyName,tmp.parents)
-                        }
-                    }
-                    
-                    let wantedIds = Object.keys(associatingForm.reverseChildrenFieldsPropertyNames)
-                    if (typeof wantedchildId == 'string' && wantedchildId.length > 0 && wantedIds.includes(wantedchildId)){
-                        wantedIds = [wantedchildId]
-                    }
-                    wantedIds.forEach((childId)=>{
-                        tmp.children[childId] = []
-                        for (const propertyName in associatingForm.reverseChildrenFieldsPropertyNames[childId]) {
-                            tmp.children[childId] = this.appendToArrayIfInEntry(entry,propertyName,tmp.children[childId])
-                        }
-                    })
-                }
-            })
-        },
-        async getData(url,id,eventPrefix,loadingCacheName,testFunction){
-            if (typeof testFunction != "function"){
-                throw "'testFunction' should be a function"
-            }
-            return await this.manageInternalEvents(id,eventPrefix,loadingCacheName,async ()=>{
-                return fetch(url)
-                    .then((response)=>{
-                        if (!response.ok){
-                            throw `response not ok when fetching ${url}`
-                        } else {
-                            return response.json()
-                        }
-                    })
-                    .then((responseDecoded)=>{
-                        if (!testFunction(responseDecoded)){
-                            throw 'response badly formatted'
-                        }
-                        return responseDecoded
-                    })
-            }).then((form)=>{return form})
-        },
-        getEntry: async function (entryId){
-            this.assertIsRegularEntryId(entryId)
-            if (entryId in this.entries){
-                return this.entries[entryId]
-            } else {
-                return await this.getData(wiki.url(`?api/entries/json/${entryId}`),entryId,'getEntry','loadingEntries',(responseDecoded)=>{
-                        if (responseDecoded && typeof responseDecoded == "object"){
-                            let firstValue = Object.values(responseDecoded)[0]
-                            if ('id_fiche' in firstValue &&
-                                firstValue.id_fiche == entryId){
-                                this.entries[entryId] = firstValue
-                                return true
-                            } else {
-                                return false
-                            }
-                        } else {
-                            return false
-                        }
-                    }).then(()=>{
-                        if (entryId in this.entries){
-                            return this.entries[entryId]
-                        } else {
-                            throw `entryId '${entryId}' not found in 'this.entries (${JSON.stringify(Object.keys(this.entries))})`
-                        }
-                    })
-                    .catch((e)=>{throw `error when getting entry '${entryId}'`+(e!=undefined ? ` : ${(e)}`:'')})
-            }
-        },
-        getForm: async function (formId){
-            this.assertIsRegularFormId(formId)
-            if (formId in this.forms){
-                return this.forms[formId]
-            } else {
-                return await this.getData(wiki.url(`?api/forms/${formId}`),formId,'getForm','loadingForms',(responseDecoded)=>{
-                        if (responseDecoded && ('bn_id_nature' in responseDecoded) &&
-                            responseDecoded.bn_id_nature == formId){
-                            this.forms[formId] = responseDecoded
-                            return true
-                        } else {
-                            return false
-                        }
-                    }).then(()=>{
-                        if (formId in this.forms){
-                            return this.forms[formId]
-                        } else {
-                            throw `formId '${formId}' not found in 'this.forms (${JSON.stringify(Object.keys(this.forms))})`
-                        }
-                    })
-                    .catch((e)=>{throw `error when getting form '${formId}'`+(e!=undefined ? ` : ${(e)}`:'')})
-            }
-        },
-        async getParentEntries(entriesIds){
-            if (entriesIds.length == 0){
-                return []
-            }
-            let promises = []
-            let promisesLabel = []
-            for (let entryId of entriesIds){
-                promises.push(
-                    new Promise((resolve,reject)=>{
-                        this.getEntry(entryId).then((entry)=>{
-                            resolve(entry)
-                        })
-                        .catch((e)=>{
-                            reject(e)
-                        })
-                    })
-                )
-                promisesLabel.push(`getting entry ${entryId}`)
-            }
-            return await Promise.allSettled(promises).then((promisesStatus)=>{
-                promisesStatus.forEach((p,idx)=>{
-                    if (p.status != "fulfilled"){
-                        console.warn(`error : ${p.reason} (when ${promisesLabel[idx]})`)
-                    }
-                })
-                return promisesStatus.filter((p)=>p.status=="fulfilled").map((p)=>p.value)
-            })
         },
         getParentFieldNameValues(fieldData){
             switch (fieldData.type) {
@@ -787,83 +383,59 @@ const enumlevel2Helper = {
             }
             return values
         },
-        importElement(element){
-            let propertyName = element.dataset.fieldPropertyname || ''
-            let parentFieldName = element.dataset.fieldParentFieldname || ''
-            let fieldName = element.dataset.fieldName || ''
-            let associatingFormId = element.dataset.fieldAssociatingFormId || ''
-            let associatingFieldId = element.dataset.fieldAssociatingFieldId || ''
-            let isForm = ('isForm' in element.dataset) ? [1,'1',true,'true'].includes(element.dataset.isForm) : false
-            if (propertyName.length > 0 && parentFieldName.length > 0){
-                this.levels2[propertyName] = {parentFieldName,fieldName,associatingFormId,isForm,associatingFieldId}
-                let field = this.findField(propertyName)
-                if (field && typeof field == "object"){
-                    this.levels2[propertyName].type = field.type
-                    this.levels2[propertyName].node = 'node' in field ? field.node : null 
-                    this.levels2[propertyName].nodes = 'nodes' in field ? field.nodes : null 
-                    this.levels2[propertyName].linkedObjectId = field.linkedObjectId 
-                    if (parentFieldName in this.parents){
-                        this.levels2[propertyName].parentId = parentFieldName
-                        this.parents[parentFieldName].childrenIds = [...this.parents[parentFieldName].childrenIds,propertyName]
-                        this.parents[parentFieldName].isForm = ('isForm' in this.parents[parentFieldName])
-                            ? this.parents[parentFieldName].isForm
-                            : (associatingFormId.length == 0)
-                    } else {
-                        field = this.findField(parentFieldName,associatingFormId)
-                        if (field && typeof field == "object"){
-                            this.parents[parentFieldName] = {
-                                type: field.type,
-                                node: 'node' in field ? field.node : null,
-                                nodes: 'nodes' in field ? field.nodes : null,
-                                linkedObjectId: field.linkedObjectId,
-                                childrenIds: [propertyName],
-                                isForm: (associatingFormId.length == 0),
-                            }
-                            this.levels2[propertyName].parentId = parentFieldName
+        getValues(parentFieldName){
+            if (!(parentFieldName in this.parents)
+              || !['checkbox','checkboxdraganddrop'].includes(this.parents[parentFieldName].type)
+              || this.parents[parentFieldName].nodes === null){
+                return {}
+            }
+            if (!('values' in this.parents[parentFieldName])){
+                let values = {}
+                this.parents[parentFieldName].nodes.forEach((node)=>{
+                    const value = this.extractInputCheckboxValue(node)
+                    if (value.length > 0){
+                        const label = 
+                            this.parents[parentFieldName].type === 'checkbox'
+                            ? this.extractInputCheckboxLabel(node)
+                            : this.extractInputCheckboxDragnDropLabel(node)
+                        if (label.length > 0){
+                            values[value] = label
                         }
                     }
-                }
+                })
+                this.parents[parentFieldName].values = values
             }
+            return this.parents[parentFieldName].values
         },
-        async manageInternalEvents(id,eventPrefix,loadingCacheName,asynFunc){
-            let p = new Promise((resolve,reject)=>{
-                this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve())
-                this.addEventOnce(`${eventPrefix}.${id}.error`,(e)=>reject(e))
-                if (!this[loadingCacheName].includes(id)){
-                    this[loadingCacheName] = [...this[loadingCacheName],id]
-                    let resettingLoadingForms = ()=>{
-                        this[loadingCacheName] = this[loadingCacheName].filter((idToCheck)=>idToCheck!=id)
-                    }
-                    this.addEventOnce(`${eventPrefix}.${id}.error`,resettingLoadingForms)
-                    this.addEventOnce(`${eventPrefix}.${id}.ready`,resettingLoadingForms)
-                    this.addEventOnce(`${eventPrefix}.${id}.ready`,()=>{
-                        this.setEventTriggered(`${eventPrefix}.${id}.error`)
-                    })
-                    asynFunc()
-                        .then((...args)=>{
-                            this.dispatchEvent(`${eventPrefix}.${id}.ready`)
-                            return Promise.resolve(...args)
-                        })
-                        .catch((e)=>{this.dispatchEvent(`${eventPrefix}.${id}.error`,e)})
-                }
-            })
-            return await p.then((...args)=>Promise.resolve(...args))
-        },
-        async registerCorrespondances(formId,fieldName,asyncFunc){
-            if (formId in this.correspondances && fieldName in this.correspondances[formId]){
-                return this.correspondances[formId][fieldName]
+        importElement(element){
+            const fieldDataRaw = element.dataset.field || ''
+            if (fieldDataRaw.length === 0){
+                return
             }
-            return await this.manageInternalEvents(`${formId}-${fieldName}`,'registerCorrespondances','registeringCorrespondances',asyncFunc).then((...args)=>{
-                if (formId in this.correspondances){
-                    if (fieldName in this.correspondances[formId]){
-                        return this.correspondances[formId][fieldName]
-                    } else {
-                        throw `this.correspondances[${formId}] should contain key '${fieldName}'at this state !`
-                    }
+            const fieldData = JSON.parse(fieldDataRaw)
+            if (typeof fieldData === 'object' 
+                && 'propertyname' in fieldData
+                && fieldData.propertyname.length > 0
+                && 'parentFieldName' in fieldData
+                && fieldData.parentFieldName.length > 0){
+                this.levels2[fieldData.propertyname] = twoLevelsHelper.formatChildField(fieldData)
+                const childField = this.levels2[fieldData.propertyname]
+                // search field to update `nodes`
+                let field = this.findField(childField.propertyname)
+                if (field && typeof field == "object"){
+                    childField.type = field.type
+                    childField.node = 'node' in field ? field.node : null 
+                    childField.nodes = 'nodes' in field ? field.nodes : null 
+                    childField.linkedObjectId = field.linkedObjectId 
+                    twoLevelsHelper.formatParentField(
+                        this.parents,
+                        childField,
+                        () => this.findField(fieldData.parentFieldName,fieldData.associatingFormId)
+                    )
                 } else {
-                    throw `this.correspondances should contain key '${formId}'at this state !`
+                    childField.type = '' // deactivate
                 }
-            })
+            }
         },
         registerTriggerForChecbox(node,parentFieldName) {
             if (jQuery && 
@@ -899,15 +471,7 @@ const enumlevel2Helper = {
             }
             return await this.updateChildren({[parentFieldName]:this.parents[parentFieldName]})
         },
-        setEventTriggered(eventName){
-            if (typeof eventName == "string" && (eventName in this.eventsListeners)){
-                this.eventsListeners[eventName] = this.eventsListeners[eventName].map((evenData)=>{
-                    evenData.triggered = true
-                    return evenData
-                })
-            }
-        },
-        updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput){
+        updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEventInput,parentValuesAssociations){
             let visiblesOptions = []
             this.blockShow(field,'checkbox')
             let nodesForWhatDispatchChangeEvent = nodesForWhatDispatchChangeEventInput
@@ -918,6 +482,7 @@ const enumlevel2Helper = {
                     baseNode.classList.add('enumlevel2-baseNode')
                 }
                 if (secondLevelValues[childId].includes(currentValue)){
+                    this.updateCheckboxLabel(field,node,currentValue,parentValuesAssociations)
                     visiblesOptions.push(node)
                     if (baseNode.classList.contains('enumlevel2-backup')){
                         let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
@@ -944,6 +509,74 @@ const enumlevel2Helper = {
                 visiblesOptions[0].checked = true
             }
             return nodesForWhatDispatchChangeEvent
+        },
+        updateContainerIfNeeded(parentfieldName,currentValue,parentValuesAssociations,callback){
+            const entries = this.getAssociatedCheckboxLabels(parentfieldName,currentValue,parentValuesAssociations)
+            if (entries.length>0 && typeof callback === 'function'){
+                const createBase = (parent) => {
+                    const base = document.createElement('span')
+                    base.classList.add('twolevels-parent-label')
+                    base.appendChild(document.createTextNode(' ('))
+                    const internalContainer = document.createElement('span')
+                    base.appendChild(internalContainer)
+                    base.appendChild(document.createTextNode(')'))
+                    parent.appendChild(base)
+                    return {base,container:internalContainer}
+                }
+                const container = callback(createBase)
+                if (container){
+                    entries.forEach((entry) => {
+                        const children = container.getElementsByTagName('span')
+                        let needToAppend = (
+                                children == undefined 
+                                || children.length === 0
+                            )
+                        if (!needToAppend){
+                            needToAppend = true
+                            for (let index = 0; index < children.length; index++) {
+                                if (needToAppend
+                                    && children.item(index).classList.contains(`twolevels-parent-label-for-${entry[0]}`)){
+                                    needToAppend = false
+                                }
+                            }
+                        }
+                        if (needToAppend){
+                            const newSpan = document.createElement('span')
+                            newSpan.classList.add(`twolevels-parent-label-for-${entry[0]}`)
+                            if (children != undefined 
+                                && children.length > 0){
+                                newSpan.appendChild(document.createTextNode(', '))
+                            }
+                            newSpan.appendChild(document.createTextNode(
+                                entry[1].length > 12
+                                ? entry[1].slice(0,12) + '…'
+                                : entry[1]
+                            ))
+                            container.appendChild(newSpan)
+                        }
+                    })
+                }
+            }
+        },
+        updateCheckboxLabel(field,node,currentValue,parentValuesAssociations){
+            this.updateContainerIfNeeded(field.parentId,currentValue,parentValuesAssociations,(createBaseFunc)=>{
+                let container = null
+                if (field.type === 'checkbox'){
+                    let spans = this.extractInputCheckboxRadioSpans(node)
+                    if (spans !== null && spans.length === 1){
+                        ({container} = createBaseFunc(node.parentNode))
+                        spans = this.extractInputCheckboxRadioSpans(node)
+                        if (spans === null || spans.length === 1){
+                            return null
+                        }
+                    } else {
+                        container = spans[1].getElementsByTagName('span')[0]
+                    }
+                } else if (field.type === 'checkboxdraganddrop'){
+                    container = this.createBaseFuncIfNeeded(this.extractInputCheckboxDragnDropSpan(node),createBaseFunc)
+                }
+                return container
+            })
         },
         updateCheckoxTag(field,secondLevelValues,childId){
             let $node = $(field.node)
@@ -1031,55 +664,50 @@ const enumlevel2Helper = {
             if (typeof parentsFields != "object"){
                 throw "'parentsFields' should be an object with format 'fieldName' => field"
             } else {
-                let promisesData = {
-                    promises: [],
-                    promisesLabel: [],
-                }
+                let promisesData = twoLevelsHelper.initPromisesData()
                 for (let fieldName in parentsFields){
                     let parentField = parentsFields[fieldName]
                     if (parentField && parentField.linkedObjectId.length > 0){
                         let values = this.getParentFieldNameValues(parentField)
                         if (parentField.isForm){
-                            this.createPromise(promisesData,{
+                            twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
-                                processFormAsync: (form)=>{
-                                    return this.getAvailableSecondLevelsValues(form,parentField,values)
+                                processFormAsync: async (form)=>{
+                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.levels2)
+                                        .then(([secondLevelValues,formModified,associations])=>{
+                                            this.updateSecondLevel(secondLevelValues,isInit,associations)
+                                            return [secondLevelValues,formModified,associations]
+                                        })
                                 },
                                 getEntriesAsync: ()=>{
-                                    return this.getParentEntries(values)
+                                    return twoLevelsHelper.getParentEntries(values)
                                 },
-                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`,
-                                isInit})
+                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`})
                         } else {
                             let formsIds = this.extractListOfAssociatingForms(fieldName,parentField)
                             for (let formIdData of formsIds){
                                 const formId = formIdData.id
-                                this.createPromise(promisesData,{
+                                twoLevelsHelper.createPromise(promisesData,{
                                     formId,
-                                    processFormAsync: (form)=>{
-                                        return this.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData)
+                                    processFormAsync: async (form)=>{
+                                        return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.levels2)
+                                        .then(([secondLevelValues,formModified,associations])=>{
+                                            this.updateSecondLevel(secondLevelValues,isInit,associations)
+                                            return [secondLevelValues,formModified,associations]
+                                        })
                                     },
                                     getEntriesAsync: ()=>{
-                                        return this.getAllEntries(formId)
+                                        return twoLevelsHelper.getAllEntries(formId)
                                     },
-                                    getEntriesLabel: `getting all entries of form ${formId}`,
-                                    isInit})
+                                    getEntriesLabel: `getting all entries of form ${formId}`})
                             }
                         }
                     }
                 }
-                return await Promise.allSettled(promisesData.promises).then((promisesStatus)=>{
-                    promisesStatus.forEach((p,idx)=>{
-                        if (p.status != "fulfilled"){
-                            console.warn(`error : ${p.reason} (when ${promisesData.promisesLabel[idx]})`)
-                            console.error({error:p.reason})
-                        }
-                    })
-                    return promisesStatus
-                })
+                return await twoLevelsHelper.resolvePromises(promisesData)
             }
         },
-        updateRadio(field,secondLevelValues,childId){
+        updateRadio(field,secondLevelValues,childId,parentValuesAssociations){
             let visiblesOptions = []
             this.blockShow(field,'radio')
             let radioBtnToCheck = []
@@ -1088,6 +716,7 @@ const enumlevel2Helper = {
                 let currentValue = node.value
                 let baseNode = node.parentNode.parentNode
                 if (secondLevelValues[childId].includes(currentValue)){
+                    this.updateRadioLabel(field,node,currentValue,parentValuesAssociations)
                     visiblesOptions.push(node)
                     let oldValue = ('wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))) ||
                         (!('wasChecked' in node.dataset) && node.dataset.default)
@@ -1148,23 +777,40 @@ const enumlevel2Helper = {
                 this.blockHide(field,'radio')
             }
         },
-        updateSecondLevel(secondLevelValues, isInit = false){
+        updateRadioLabel(field,node,currentValue,parentValuesAssociations){
+            this.updateContainerIfNeeded(field.parentId,currentValue,parentValuesAssociations,(createBaseFunc)=>{
+                let container = null
+                let spans = this.extractInputCheckboxRadioSpans(node)
+                if (spans !== null && spans.length === 1){
+                    ({container} = createBaseFunc(node.parentNode))
+                    spans = this.extractInputCheckboxRadioSpans(node)
+                    if (spans === null || spans.length === 1){
+                        return null
+                    }
+                } else {
+                    container = spans[1].getElementsByTagName('span')[0]
+                }
+                return container
+            })
+        },
+        updateSecondLevel(secondLevelValues, isInit = false, associations = {}){
             let nodesForWhatDispatchChangeEvent = []
             for (const childId in secondLevelValues) {
                 let field = this.levels2[childId]
+                let parentValuesAssociations = associations[childId] ?? {}
                 switch (field.type) {
                     case "checkbox":
                     case "checkboxdraganddrop":
-                        nodesForWhatDispatchChangeEvent = this.updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent)
+                        nodesForWhatDispatchChangeEvent = this.updateCheckox(isInit,field,secondLevelValues,childId,nodesForWhatDispatchChangeEvent,parentValuesAssociations)
                         break
                     case "checkboxtag":
                         this.updateCheckoxTag(field,secondLevelValues,childId)
                         break 
                     case "radio":
-                        this.updateRadio(field,secondLevelValues,childId)
+                        this.updateRadio(field,secondLevelValues,childId,parentValuesAssociations)
                         break
                     case "select":
-                        this.updateSelect(isInit,field,secondLevelValues,childId)
+                        this.updateSelect(isInit,field,secondLevelValues,childId,parentValuesAssociations)
                     default:
                         break
                 }
@@ -1172,7 +818,7 @@ const enumlevel2Helper = {
             let event = new Event("change")
             nodesForWhatDispatchChangeEvent.forEach((node)=>{node.dispatchEvent(event)})
         },
-        updateSelect(isInit,field,secondLevelValues,childId){
+        updateSelect(isInit,field,secondLevelValues,childId,parentValuesAssociations){
             let selectOptionsToSelect = []
             this.blockShow(field,'select')
             $(field.node).closest('.control-group.select').show()
@@ -1182,6 +828,7 @@ const enumlevel2Helper = {
                 let currentValue = node.value
                 let baseNode = node
                 if (currentValue.length == '' || secondLevelValues[childId].includes(currentValue)){
+                    this.updateSelectLabel(field,node,currentValue,parentValuesAssociations)
                     visiblesOptions.push(node)
                     if (baseNode.classList.contains('enumlevel2-backup')){
                         let oldValue = 'wasChecked' in node.dataset && ([1,true,"true","1"].includes(node.dataset.wasChecked))
@@ -1208,6 +855,11 @@ const enumlevel2Helper = {
             if (notEmptyOptions.length == 0){
                 this.blockHide(field,'select')
             }
+        },
+        updateSelectLabel(field,node,currentValue,parentValuesAssociations){
+            this.updateContainerIfNeeded(field.parentId,currentValue,parentValuesAssociations,(createBaseFunc)=>{
+                return this.createBaseFuncIfNeeded(node,createBaseFunc)
+            })
         },
         async init(){
             let elements = document.querySelectorAll(".enum-two-level-data")

@@ -15,4 +15,5 @@ return [
     'TWOLEVELS_INTRAFILTERSMODE_HINT' => 'ATTENTION : n\'est pris en compte que pour `dynamic=true` ou `bazarcard`',
     'TWOLEVELS_INTRAFILTERSMODE_OR' => 'ou (par défaut)',
     'TWOLEVELS_INTRAFILTERSMODE_AND' => 'et',
+    'TWOLEVELS_INTRAFILTERSMODE_SUBLEVEL' => 'sous-niveau',
 ];
