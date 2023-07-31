@@ -67,6 +67,7 @@ if (Vue) {
                 // allow usage of custom function if available
                 option.nb = customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName)
             } else {
+                // TODO check if nb is the right one
                 option.nb = getEntriesForThisField(availableEntriesForThisFilter,fieldName,(value)=>value == option.value).length
             }
         }
