@@ -72,6 +72,34 @@ if (Vue) {
         }
     }
 
+    const updateVisibilityIfSublevel = (root) => {
+        if (root.params.intrafiltersmode !== 'sublevel'){
+            return
+        }
+        Object.keys(root.filters).forEach((fieldName)=>{
+            const filter = root.filters[fieldName]
+            if (fieldName in refreshOptionCache.options){
+                const childField = refreshOptionCache.options[fieldName]
+                if (childField.parentId
+                    && childField.parentId.length > 0
+                    && childField.parentId in refreshOptionCache.parents
+                    && childField.parentId in root.filters){
+                    const parentField = refreshOptionCache.parents[childField.parentId]
+                    const parentFilter = root.filters[childField.parentId]
+                    const parentValues = parentFilter.list.filter((option)=>option.checked).map(option=>option.value)
+                    for (let index = 0; index < filter.list.length; index++) {
+                        const option = filter.list[index]
+                        option.hide = !parentValues.every((parentValue)=>{
+                            return (parentValue in parentField.secondLevelValues)
+                                ? parentField.secondLevelValues[parentValue].includes(option.value)
+                                : false
+                        })
+                    }
+                }
+            }
+        })
+    }
+
     const getCheckedFiltersWithMoreThanOne = (root) => {
         let modeThanOneCheckedFiltersName = [];
         for(let fieldName in root.filters) {
@@ -88,8 +116,7 @@ if (Vue) {
 
     const refreshOptionCache = {
         options: {},
-        parents: {},
-        levels2: {}
+        parents: {}
     }
     const getSanitizedIds = (root) => {
         if (!('ids' in refreshOptionCache)){
@@ -118,8 +145,8 @@ if (Vue) {
         })
         return parentField.listOfAssociatingForms[fieldName]
     }
-    const updateSecondLevelValues = (filterOption,childField,parentField,secondLevelValues,formModified,associations) =>{
-        parentField.secondLevelValues[filterOption.name] = secondLevelValues[filterOption.name]
+    const updateSecondLevelValues = (value,filterOption,childField,parentField,secondLevelValues,formModified,associations) =>{
+        parentField.secondLevelValues[value] = secondLevelValues[filterOption.name]
         Object.entries(associations[filterOption.name]).forEach(([val,parentValue])=>{
             if (!(val in childField.associations)){
                 childField.associations[val] = []
@@ -131,7 +158,8 @@ if (Vue) {
     }
     const refreshOption = (filterOption,promisesData,root) => {
         const field = getFieldFormRoot(root,filterOption.name)
-        if (field !== null && Object.keys(field).length > 0){
+        if (field !== null && Object.keys(field).length > 0
+            && !(filterOption.name in refreshOptionCache.options)){
             // start refresh
             refreshOptionCache.options[filterOption.name] = {
                 status: 'refreshing',
@@ -151,8 +179,8 @@ if (Vue) {
                         return getFieldFormRoot(root,childField.parentFieldName)
                     }
                 )
-                if (childField.parentFieldName in refreshOptionCache.parents){
-                    const parentField = refreshOptionCache.parents[childField.parentFieldName]
+                if (childField.parentId in refreshOptionCache.parents){
+                    const parentField = refreshOptionCache.parents[childField.parentId]
                     parentField.secondLevelValues = {}
                     const optionsAsEntries = Object.entries(parentField.field.options)
                     for (let index = 0; index < optionsAsEntries.length; index++) {
@@ -164,7 +192,7 @@ if (Vue) {
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache.options)
                                         .then(([secondLevelValues,formModified,associations])=>{
-                                            updateSecondLevelValues(filterOption,childField,parentField,secondLevelValues,formModified,associations)
+                                            updateSecondLevelValues(optionKey,filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                             return [secondLevelValues,formModified,associations]
                                         })
                                 },
@@ -188,7 +216,7 @@ if (Vue) {
                                         refreshOptionCache.options
                                     )
                                     .then(([secondLevelValues,formModified,associations])=>{
-                                        updateSecondLevelValues(filterOption,childField,parentField,secondLevelValues,formModified,associations)
+                                        updateSecondLevelValues(optionKey,filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                         return [secondLevelValues,formModified,associations]
                                     })
                                 },
@@ -204,7 +232,8 @@ if (Vue) {
     }
     const refreshOptionsAsync = async (root) => {
         try {
-            if (root.params.intrafiltersmode !== 'sublevel'){
+            if (root.params.intrafiltersmode !== 'sublevel'
+                || Object.keys(refreshOptionCache.options).length > 0){
                 return
             }
             const filters = root.filters // TODO check if get computedFilters
@@ -219,14 +248,18 @@ if (Vue) {
                     })
                 }
             }
-            await twoLevelsHelper.resolvePromises(promisesData).then(()=>{
-                Object.keys(refreshOptionCache.options).forEach((k)=>{
-                    refreshOptionCache.options[k].status = 'done'
-                    // todo only update the right ones
-                })
-            })
+            if (promisesData.promises.length > 0){
+                await twoLevelsHelper.resolvePromises(promisesData)
+                // something could have changes
+                // trigger update entries
+                root.filteredEntries = [...root.filteredEntries]
+            }
             
-            // todo refresh entries if something changes
+            Object.keys(refreshOptionCache.options).forEach((k)=>{
+                refreshOptionCache.options[k].status = 'done'
+                // todo only update the right ones
+            })
+
         } catch (error) {
             console.error(error)
         }
@@ -312,7 +345,7 @@ if (Vue) {
             }
             availableEntriesForThisFilter = filterEntriesSync(availableEntriesForThisFilter,root)
             updateNbForEachFilter(root,fieldName,availableEntriesForThisFilter)
-            // todo update filter visibility according to sublevel
+            updateVisibilityIfSublevel(root)
         }
         return root.filters;
     };
