@@ -147,6 +147,13 @@ const enumlevel2Helper = {
             }
             return ''
         },
+        extractIdForCheckbox(node){
+            const id = $(node).prop('id')
+            if (id == undefined || id.lengh === 0){
+                throw new Error('id is not defined')
+            }
+            return id.replace(/\[.*$/,'')
+        },
         extractLinkedObjectIdForCheckox(node, mode = "group-checkbox-", type = "checkbox"){
             let linkedObjectId = ""
             let fieldPropertyName = ""
@@ -228,6 +235,7 @@ const enumlevel2Helper = {
             return (inputsNodes.length == 0) ? null : {
                 type: "checkbox",
                 nodes: inputsNodes,
+                propertyname: this.extractIdForCheckbox($(filteredElements[0]).find('input')[0]), // keep only the first one
                 linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0]) // keep only the first one
             }
         },
@@ -257,6 +265,7 @@ const enumlevel2Helper = {
             return (inputsNodes.length == 0) ? null : {
                 type: "checkboxdraganddrop",
                 nodes: inputsNodes,
+                propertyname: this.extractIdForCheckbox(filteredElements[0]), // keep only the first one
                 linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0],"group-") // keep only the first one
             }
         },
@@ -270,6 +279,7 @@ const enumlevel2Helper = {
             return {
                     type: "checkboxtag",
                     node: elements[0],
+                    propertyname: $(elements[0]).prop('name'), // keep only the first one
                     linkedObjectId: linkedObjectId
                 }
         },     
@@ -292,6 +302,7 @@ const enumlevel2Helper = {
                 : {
                     type: "select",
                     node: elements[0],
+                    propertyname: $(elements[0]).prop('name'), // keep only the first one
                     linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"liste")
                 }
         },
@@ -307,6 +318,7 @@ const enumlevel2Helper = {
             return {
                     type: "radio",
                     nodes: inputsNodes,
+                    propertyname: $(elements[0]).prop('name'), // keep only the first one
                     linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"radio")
             }
         },

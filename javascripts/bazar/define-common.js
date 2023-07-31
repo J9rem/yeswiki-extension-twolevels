@@ -42,6 +42,25 @@ if (Vue) {
         })
     }
 
+    const getFieldFormRoot = (root,fieldName) => {
+        if ('formFields' in root 
+            && typeof root.formFields === 'object'
+            && Object.keys(root.formFields).length > 0){
+            if (fieldName in root.formFields){
+                return root.formFields[fieldName]
+            }
+            for (const key in root.formFields) {
+                if (Object.hasOwnProperty.call(root.formFields, key)) {
+                    const field = root.formFields[key];
+                    if ('name' in field && field.name === fieldName){
+                        return field
+                    }
+                }
+            }
+        }
+        return null
+    }
+
     const updateNbForEachFilter = (root,fieldName,availableEntriesForThisFilter) => {
         for (let option of root.filters[fieldName].list) {
             if (typeof customCalculatebFromAvailableEntries == "function"){
@@ -99,7 +118,7 @@ if (Vue) {
         })
         return parentField.listOfAssociatingForms[fieldName]
     }
-    const updateSecondLevelValues = (childField,parentField,secondLevelValues,formModified,associations) =>{
+    const updateSecondLevelValues = (filterOption,childField,parentField,secondLevelValues,formModified,associations) =>{
         parentField.secondLevelValues[filterOption.name] = secondLevelValues[filterOption.name]
         Object.entries(associations[filterOption.name]).forEach(([val,parentValue])=>{
             if (!(val in childField.associations)){
@@ -111,14 +130,14 @@ if (Vue) {
         })
     }
     const refreshOption = (filterOption,promisesData,root) => {
-        // start refresh
-        refreshOptionCache.options[filterOption.name] = {
-            status: 'refreshing',
-            linkedObjectId: '',
-            associations: {}
-        }
-        const field = root.fieldInfo(filterOption.name)
-        if (field !== null){
+        const field = getFieldFormRoot(root,filterOption.name)
+        if (field !== null && Object.keys(field).length > 0){
+            // start refresh
+            refreshOptionCache.options[filterOption.name] = {
+                status: 'refreshing',
+                linkedObjectId: '',
+                associations: {}
+            }
             refreshOptionCache.options[filterOption.name] = {
                 ...refreshOptionCache.options[filterOption.name],
                 ...twoLevelsHelper.formatChildField(field)
@@ -128,7 +147,9 @@ if (Vue) {
                 twoLevelsHelper.formatParentField(
                     refreshOptionCache.parents,
                     childField,
-                    ()=>root.fieldInfo(childField.parentFieldName)
+                    ()=>{
+                        return getFieldFormRoot(root,childField.parentFieldName)
+                    }
                 )
                 if (childField.parentFieldName in refreshOptionCache.parents){
                     const parentField = refreshOptionCache.parents[childField.parentFieldName]
@@ -143,7 +164,7 @@ if (Vue) {
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache.options)
                                         .then(([secondLevelValues,formModified,associations])=>{
-                                            updateSecondLevelValues(childField,parentField,secondLevelValues,formModified,associations)
+                                            updateSecondLevelValues(filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                             return [secondLevelValues,formModified,associations]
                                         })
                                 },
@@ -167,7 +188,7 @@ if (Vue) {
                                         refreshOptionCache.options
                                     )
                                     .then(([secondLevelValues,formModified,associations])=>{
-                                        updateSecondLevelValues(childField,parentField,secondLevelValues,formModified,associations)
+                                        updateSecondLevelValues(filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                         return [secondLevelValues,formModified,associations]
                                     })
                                 },
