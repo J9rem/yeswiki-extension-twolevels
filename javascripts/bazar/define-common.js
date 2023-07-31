@@ -38,7 +38,7 @@ if (Vue) {
                 return
             }
             entryValues = entryValues.split(',')
-            return entryValues.some(value => test(value))
+            return test(entryValues)
         })
     }
 
@@ -67,8 +67,7 @@ if (Vue) {
                 // allow usage of custom function if available
                 option.nb = customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName)
             } else {
-                // TODO check if nb is the right one
-                option.nb = getEntriesForThisField(availableEntriesForThisFilter,fieldName,(value)=>value == option.value).length
+                option.nb = getEntriesForThisField(availableEntriesForThisFilter,fieldName,(values)=>values.some((value)=>value == option.value)).length
             }
         }
     }
@@ -298,9 +297,13 @@ if (Vue) {
                 modeThanOneCheckedFiltersName
                     .filter(fName=>fName!=fieldName)
                     .forEach((otherFieldName)=>{
-                        availableEntriesForThisFilter = getEntriesForThisField(availableEntriesForThisFilter,fieldName,(value)=>{
-                            return root.filters[otherFieldName].list.some((option)=>option.checked && value == option.value)
-                        })
+                        availableEntriesForThisFilter = getEntriesForThisField(
+                            availableEntriesForThisFilter,
+                            otherFieldName,
+                            (values)=>{
+                                return root.filters[otherFieldName].list.some((option)=>option.checked && values.some(value=>value == option.value))
+                            }
+                        )
                 });
             } else {
                 availableEntriesForThisFilter = (root.params.template === "map")
