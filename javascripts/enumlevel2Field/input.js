@@ -290,7 +290,7 @@ const enumlevel2Helper = {
                 this.findList(name) ||
                 this.findRadio(name) ||
                 null
-            if (associatingFormId.length > 0){
+            if (field && associatingFormId.length > 0){
                 field.linkedObjectId = field.linkedObjectId.replace(new RegExp(`${name}$`),'')
             }
             return field
