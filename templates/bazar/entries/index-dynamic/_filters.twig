@@ -16,7 +16,7 @@
     "themes/tools/bazar/templates/entries/index-dynamic/_filters.twig",
     "themes/tools/bazar/entries/index-dynamic/_filters.twig",
     "tools/bazar/templates/entries/index-dynamic/_filters.twig",
-    ])|replace({
+    ],{renderedFromTwoLevels:true})|replace({
       'v-if="entriesToDisplay.length':'v-if="filteredEntriesCount',
       '<div class="results-container">':'<div class="results-container">
         <template v-for="filter, key in refreshedFiltersWithentries(filteredEntries,$root)">',
