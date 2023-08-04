@@ -68,9 +68,32 @@ When editing a list in the wanted form, a change of the value of the high level'
 
 Te filter system `facettes` also works.
 
-**Tip** : In yeswiki action editor via `components` button, iit is possible to select the behaviour of filters in a group of filter between `or` (default) and `and`
+**Tip** : In yeswiki action editor via `components` button, iit is possible to select the behaviour of filters in a group of filter between `or` (default), `and` and `sublevel`
 
 To select this:
  - modify action `bazarliste`
  - check advanced parameters
  - search the parameter below `facettes` (filters)
+
+?> If you want to force a default behaviour when using `{{bazarliste}}`, you can create the file `custom/actions/__BazarListeAction.php` with following content:
+```php
+<?php
+
+namespace YesWiki\Custom;
+
+use BazarAction;
+use YesWiki\Core\YesWikiAction;
+
+class __BazarListeAction extends YesWikiAction
+{
+    public function formatArguments($arg)
+    {
+        return [
+            'intrafiltersmode' => 'sublevel',
+        ];
+    }
+    public function run()
+    {
+    }
+}
+```

@@ -68,9 +68,32 @@ Lors de la saisie d'une fiche dans le formulaire cible, une modification de la v
 
 Le système de filtre par `facettes` fonctionne aussi.
 
-**Astuce** : dans l'éditeur d'action yeswiki via le bouton `composants`, il est maintenant possible de choisir le comportement des filtres au sein du même facette entre `ou` (comportement par défaut) et `et`.
+**Astuce** : dans l'éditeur d'action yeswiki via le bouton `composants`, il est maintenant possible de choisir le comportement des filtres au sein du même facette entre `ou` (comportement par défaut), `et` et `sublevel`.
 
 Pour faire le réglage:
  - modifier une action `bazarliste`
  - cocher les paramètres avancés
  - rechercher le réglage juste en dessous des `facettes`
+
+?> Si vous voulez forcer un comportement par défaut pour tous vos appels à `{{bazarliste}}`, il vous suffit de créer le fichier `custom/actions/__BazarListeAction.php` avec le contenu suivant :
+```php
+<?php
+
+namespace YesWiki\Custom;
+
+use BazarAction;
+use YesWiki\Core\YesWikiAction;
+
+class __BazarListeAction extends YesWikiAction
+{
+    public function formatArguments($arg)
+    {
+        return [
+            'intrafiltersmode' => 'sublevel',
+        ];
+    }
+    public function run()
+    {
+    }
+}
+```
