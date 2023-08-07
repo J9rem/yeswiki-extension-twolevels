@@ -68,7 +68,7 @@ Lors de la saisie d'une fiche dans le formulaire cible, une modification de la v
 
 Le système de filtre par `facettes` fonctionne aussi.
 
-**Astuce** : dans l'éditeur d'action yeswiki via le bouton `composants`, il est maintenant possible de choisir le comportement des filtres au sein du même facette entre `ou` (comportement par défaut), `et` et `sublevel`.
+**Astuce** : dans l'éditeur d'action yeswiki via le bouton `composants`, il est maintenant possible de choisir le comportement des filtres au sein du même facette entre `ou` (comportement par défaut) ou `et`.
 
 Pour faire le réglage:
  - modifier une action `bazarliste`
@@ -89,7 +89,7 @@ class __BazarListeAction extends YesWikiAction
     public function formatArguments($arg)
     {
         return [
-            'intrafiltersmode' => 'sublevel',
+            'intrafiltersmode' => 'and',
         ];
     }
     public function run()

@@ -68,7 +68,7 @@ When editing a list in the wanted form, a change of the value of the high level'
 
 Te filter system `facettes` also works.
 
-**Tip** : In yeswiki action editor via `components` button, iit is possible to select the behaviour of filters in a group of filter between `or` (default), `and` and `sublevel`
+**Tip** : In yeswiki action editor via `components` button, iit is possible to select the behaviour of filters in a group of filter between `or` (default) or `and`
 
 To select this:
  - modify action `bazarliste`
@@ -89,7 +89,7 @@ class __BazarListeAction extends YesWikiAction
     public function formatArguments($arg)
     {
         return [
-            'intrafiltersmode' => 'sublevel',
+            'intrafiltersmode' => 'and',
         ];
     }
     public function run()
