@@ -75,8 +75,7 @@ trait ActionsBuilderServiceCommon
                     ],
                     'options' => [
                         'or' => _t('TWOLEVELS_INTRAFILTERSMODE_OR'),
-                        'and' => _t('TWOLEVELS_INTRAFILTERSMODE_AND'),
-                        'sublevel' => _t('TWOLEVELS_INTRAFILTERSMODE_SUBLEVEL'),
+                        'and' => _t('TWOLEVELS_INTRAFILTERSMODE_AND')
                     ]
                 ];
                 $newProps['autohidefilter'] = [

@@ -10,9 +10,19 @@
 import twoLevelsHelper from '../twolevels.js'
 
 if (Vue) {
+    let isSubLevelCache = null
+    const isSubLevel = (root) => {
+        if (isSubLevelCache === null){
+            if (Object.keys(root.formFields).length === 0){
+                return false
+            }
+            isSubLevelCache = Object.values(root.formFields).some((field)=>('parentFieldName' in field && 'associatingFormId' in field))
+        }
+        return isSubLevelCache
+    }
+
     const canShowAnd = (root) => {
-        return (typeof root.params.intrafiltersmode === 'string')
-           && ['and','sublevel'].includes(root.params.intrafiltersmode)
+        return (root.params.intrafiltersmode === 'and')
     }
 
     const filterEntriesSync = (entries,root) => {
@@ -73,7 +83,7 @@ if (Vue) {
     }
 
     const updateVisibilityIfSublevel = (root) => {
-        if (root.params.intrafiltersmode !== 'sublevel'){
+        if (!isSubLevel(root)){
             return
         }
         Object.keys(root.filters).forEach((fieldName)=>{
@@ -87,13 +97,16 @@ if (Vue) {
                     const parentField = refreshOptionCache.parents[childField.parentId]
                     const parentFilter = root.filters[childField.parentId]
                     const parentValues = parentFilter.list.filter((option)=>option.checked).map(option=>option.value)
+                    const parentValueIsChecked = (parentValue,option)=>{
+                        return (parentValue in parentField.secondLevelValues)
+                            ? parentField.secondLevelValues[parentValue].includes(option.value)
+                            : false
+                    }
                     for (let index = 0; index < filter.list.length; index++) {
                         const option = filter.list[index]
-                        option.hide = !parentValues.every((parentValue)=>{
-                            return (parentValue in parentField.secondLevelValues)
-                                ? parentField.secondLevelValues[parentValue].includes(option.value)
-                                : false
-                        })
+                        option.hide = canShowAnd(root)
+                            ? !parentValues.every((parentValue)=>parentValueIsChecked(parentValue,option))
+                            : !parentValues.some((parentValue)=>parentValueIsChecked(parentValue,option))
                     }
                 }
             }
@@ -232,7 +245,7 @@ if (Vue) {
     }
     const refreshOptionsAsync = async (root) => {
         try {
-            if (root.params.intrafiltersmode !== 'sublevel'
+            if (!isSubLevel(root)
                 || Object.keys(refreshOptionCache.options).length > 0){
                 return
             }
