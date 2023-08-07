@@ -504,9 +504,10 @@ const enumlevel2Helper = {
             })
             if (visiblesOptions.length == 0){
                 this.blockHide(field,'checkbox')
-            } else if (!isInit && visiblesOptions.length == 1 && !visiblesOptions[0].checked){
-                visiblesOptions[0].dispatchEvent(new Event("click"))
-                visiblesOptions[0].checked = true
+            // part commented to not auto select if only one choice
+            // } else if (!isInit && visiblesOptions.length == 1 && !visiblesOptions[0].checked){
+            //     visiblesOptions[0].dispatchEvent(new Event("click"))
+            //     visiblesOptions[0].checked = true
             }
             return nodesForWhatDispatchChangeEvent
         },
