@@ -15,4 +15,5 @@ return [
     'TWOLEVELS_INTRAFILTERSMODE_HINT' => 'WARNING : taken in count only for `dynamic=true` or `bazarcard`',
     'TWOLEVELS_INTRAFILTERSMODE_OR' => 'or (default)',
     'TWOLEVELS_INTRAFILTERSMODE_AND' => 'and',
+    'TWOLEVELS_KEEPALLPARENTS_LABEL' => 'Keep display of parents\' filters',
 ];

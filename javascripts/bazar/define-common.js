@@ -110,6 +110,12 @@ if (Vue) {
                     }
                 }
             }
+            if (fieldName in refreshOptionCache.parents){
+                for (let index = 0; index < filter.list.length; index++) {
+                    const option = filter.list[index]
+                    option.forceShow = true
+                }
+            }
         })
     }
 
@@ -279,9 +285,10 @@ if (Vue) {
     }
 
     Vue.prototype.isDisplayedFilterOption = function(filterOption,root){
-        return root.params.autohidefilter === "false" ||
-            (!canShowAnd(root) && filterOption.checked) 
-            || (filterOption.hide !== true && filterOption.nb > 0)
+        return root.params.autohidefilter === "false" // main param
+            || (!canShowAnd(root) && filterOption.checked) // display if checked in all case
+            || (root.params.keepallparents !== "false" && filterOption.forceShow === true) // display if parentField of sublevel
+            || (filterOption.hide !== true &&  filterOption.nb > 0) // hide or at least one element
     }
     Vue.prototype.filterHasAtLeastOneOption = function(filter,root){
         if (typeof customfilterHasAtLeastOneOption == "function"){
