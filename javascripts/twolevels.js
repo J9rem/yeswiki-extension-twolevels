@@ -224,14 +224,16 @@ const formatParentField = (parentsContainer,childField,findFieldFunction) => {
             if (typeof findFieldFunction === 'function'){
                 const field = findFieldFunction()
                 if (typeof field === "object" && field !== null && Object.keys(field).length > 0 && 'propertyname' in field){
-                    parentsContainer[field.propertyname] = {
-                        type: field.type,
-                        node: 'node' in field ? field.node : null,
-                        nodes: 'nodes' in field ? field.nodes : null,
-                        linkedObjectId: field.linkedObjectName ?? field.linkedObjectId,
-                        childrenIds: [],
-                        isForm: (childField.associatingFormId.length == 0),
-                        field
+                    if (!(field.propertyname in parentsContainer)){
+                        parentsContainer[field.propertyname] = {
+                            type: field.type,
+                            node: 'node' in field ? field.node : null,
+                            nodes: 'nodes' in field ? field.nodes : null,
+                            linkedObjectId: field.linkedObjectName ?? field.linkedObjectId,
+                            childrenIds: [],
+                            field
+                        }
+                        parentsContainer[field.propertyname].isForm = !parentsContainer[field.propertyname].linkedObjectId.match(/^Liste/)
                     }
                     childField.parentId = field.propertyname
                 }
