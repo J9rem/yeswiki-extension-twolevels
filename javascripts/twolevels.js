@@ -209,7 +209,7 @@ const formatChildField = (field) => {
         fieldName: field.name || '',
         associatingFormId: field.associatingFormId || '',
         associatingFieldId: field.associatingFieldId || '',
-        isForm: (field.associatingFormId == field.linkedObjectName),
+        isForm: (field.associatingFormId == field.linkedObjectName || !field.linkedObjectName.match(/^Liste/)),
         field,
         linkedObjectId: field.linkedObjectName || '',
         type: field.type || '',
