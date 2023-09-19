@@ -10,7 +10,7 @@ Extension [YesWiki](https://yeswiki.net/) to have twolevels list in bazar
 ### Authors
 
  - Jérémy Dufraisse
- - and all contributors indicated on this page : <https://github.com/YesWiki/yeswiki-extension-twolevels/graphs/contributors>
+ - and all contributors indicated on this page : <https://github.com/J9rem/yeswiki-extension-twolevels/graphs/contributors>
 
 ### Install
 
@@ -18,7 +18,7 @@ In page `GererMisesAJour` on your YesWiki website, search extension `twolevels` 
 
 ### Usage
 
-Usage help is described in `http://example.com/?doc/#tools/twolevels/en/README.md` (replacing `http://example.com/?` by the `baseUrl` of your wiki). The same file can be found also here : https://github.com/YesWiki/yeswiki-extension-twolevels/blob/master/docs/en/README.md
+Usage help is described in `http://example.com/?doc/#tools/twolevels/en/README.md` (replacing `http://example.com/?` by the `baseUrl` of your wiki). The same file can be found also here : https://github.com/J9rem/yeswiki-extension-twolevels/blob/j9rem/docs/en/README.md
 
 ### Warranty
 
@@ -32,7 +32,7 @@ Extension [YesWiki](https://yeswiki.net/) pur avoir des listes à deux niveaux d
 ### Auteurs
 
  - Jérémy Dufraisse
- - et tous les contributeurs et toutes les contributrices indiqués sur cette page : <https://github.com/YesWiki/yeswiki-extension-twolevels/graphs/contributors>
+ - et tous les contributeurs et toutes les contributrices indiqués sur cette page : <https://github.com/J9rem/yeswiki-extension-twolevels/graphs/contributors>
 
 ### Installation
 
@@ -40,7 +40,7 @@ Dans la page `GererMisesAJour` de votre YesWiki, recherchez l'extension `twoleve
 
 ### Utilisation
 
-L'aide sur l'utilisation peut être trouvée sur `http://example.com/?doc/#tools/twolevels/fr/README.md` (en remplaçant `http://example.com/?` par `baseUrl` de votre wiki). Le même fichier peut aussi être trouvé ici : https://github.com/YesWiki/yeswiki-extension-twolevels/blob/master/docs/fr/README.md
+L'aide sur l'utilisation peut être trouvée sur `http://example.com/?doc/#tools/twolevels/fr/README.md` (en remplaçant `http://example.com/?` par `baseUrl` de votre wiki). Le même fichier peut aussi être trouvé ici : https://github.com/J9rem/yeswiki-extension-twolevels/blob/j9rem/docs/fr/README.md
 
 ### Garantie
 

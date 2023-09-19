@@ -2,7 +2,7 @@
 
 ## If the help concerns the current extension
 
- - Send a message to YesWiki forum https://forum.yeswiki.net/c/support/9
+ - Send a message to J9rem (https://github.com/J9rem/) (e-mail visible if connected to Github)
 
 ## If the help concerns YesWiki of if you don't know
 
