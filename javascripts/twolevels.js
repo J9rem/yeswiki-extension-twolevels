@@ -89,11 +89,13 @@ const appendChildrenFieldsPropertyNamestoParentForm = (form,parentField,linkedOb
     parentField.childrenIds.forEach((childId)=>{
         if (!(childId in forms[formId].childrenFieldsPropertyNames)){
             forms[formId].childrenFieldsPropertyNames[childId] = {}
-            if (childId in linkedObjectIds
-                && linkedObjectIds[childId].length > 0){
+            if (parentField.isForm
+                || (childId in linkedObjectIds
+                    && linkedObjectIds[childId].length > 0)){
+                const wantedObjectName = parentField.isForm ? parentField.linkedObjectId : linkedObjectIds[childId]
                 getPreparedFromForm(forms[formId]).forEach((field)=> {
                     if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
-                        .includes(field.type) && field.linkedObjectName == linkedObjectIds[childId]){
+                        .includes(field.type) && field.linkedObjectName == wantedObjectName){
                         forms[formId].childrenFieldsPropertyNames[childId][field.propertyname] = field
                     }
                 })

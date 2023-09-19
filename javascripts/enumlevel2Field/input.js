@@ -670,7 +670,8 @@ const enumlevel2Helper = {
                     let parentField = parentsFields[fieldName]
                     if (parentField && parentField.linkedObjectId.length > 0){
                         let values = this.getParentFieldNameValues(parentField)
-                        if (parentField.isForm){
+                        const formsIds = this.extractListOfAssociatingForms(fieldName,parentField)
+                        if (parentField.isForm && formsIds.length === 0){
                             twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
@@ -683,9 +684,9 @@ const enumlevel2Helper = {
                                 getEntriesAsync: ()=>{
                                     return twoLevelsHelper.getParentEntries(values)
                                 },
-                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`})
+                                getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`
+                            })
                         } else {
-                            let formsIds = this.extractListOfAssociatingForms(fieldName,parentField)
                             for (let formIdData of formsIds){
                                 const formId = formIdData.id
                                 twoLevelsHelper.createPromise(promisesData,{
