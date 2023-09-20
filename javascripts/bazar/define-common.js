@@ -205,7 +205,11 @@ if (Vue) {
                     for (let index = 0; index < optionsAsEntries.length; index++) {
                         const optionKey = optionsAsEntries[index][0]
                         const values = [optionKey]
-                        if (parentField.isForm){
+                        const formIdData = extractFormIdData(filterOption.name,parentField)
+                        if (parentField.isForm && (
+                            !(formIdData?.id?.length > 0)
+                            || String(formIdData?.id) === String(parentField.linkedObjectId)
+                            ) ){
                             twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
@@ -221,7 +225,6 @@ if (Vue) {
                                 getEntriesLabel: `getting parentEntries for ${JSON.stringify(values)}`}
                             )
                         } else {
-                            const formIdData = extractFormIdData(filterOption.name,parentField)
                             const formId = formIdData.id
                             twoLevelsHelper.createPromise(promisesData,{
                                 formId,
