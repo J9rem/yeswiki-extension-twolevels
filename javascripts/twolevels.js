@@ -81,7 +81,7 @@ const getPreparedFromForm = (form) => {
     )
 }
 
-const appendChildrenFieldsPropertyNamestoParentForm = (form,parentField,linkedObjectIds) => {
+const appendChildrenFieldsPropertyNamestoParentForm = (form,parentField,linkedObjectIds,fromList = false) => {
     const formId = form.bn_id_nature
     if (!('childrenFieldsPropertyNames' in forms[formId])){
         forms[formId].childrenFieldsPropertyNames = {}
@@ -92,7 +92,7 @@ const appendChildrenFieldsPropertyNamestoParentForm = (form,parentField,linkedOb
             if (parentField.isForm
                 || (childId in linkedObjectIds
                     && linkedObjectIds[childId].length > 0)){
-                const wantedObjectName = parentField.isForm ? parentField.linkedObjectId : linkedObjectIds[childId]
+                const wantedObjectName = (parentField.isForm && fromList) ? parentField.linkedObjectId : linkedObjectIds[childId]
                 getPreparedFromForm(forms[formId]).forEach((field)=> {
                     if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
                         .includes(field.type) && field.linkedObjectName == wantedObjectName){
@@ -393,7 +393,7 @@ const getParentEntries = async (entriesIds)=>{
     })
 }
 const getAvailableSecondLevelsValues = async (parentForm,parentField,values,linkedObjectIdsCache) =>{
-    parentForm = appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField,extractLinkedObjects(linkedObjectIdsCache))
+    parentForm = appendChildrenFieldsPropertyNamestoParentForm(parentForm,parentField,extractLinkedObjects(linkedObjectIdsCache),false)
     return await getParentEntries(values).then(()=>{
         let secondLevelValues = {}
         let associations = {}
@@ -542,7 +542,7 @@ const getAvailableSecondLevelsValuesForLists = async (associatingForm,fieldName,
     let correspondances = null
     let propNames = {}
     if (!reverseMode){
-        associatingForm = appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField,extractLinkedObjects(linkedObjectIdsCache))
+        associatingForm = appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField,extractLinkedObjects(linkedObjectIdsCache),true)
         associatingForm = appendParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
         correspondances = await getCorrespondances(associatingForm,fieldName,parentField)
         propNames = associatingForm.childrenFieldsPropertyNames
