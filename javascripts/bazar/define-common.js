@@ -86,15 +86,16 @@ if (Vue) {
         if (!isSubLevel(root)){
             return
         }
+        const uuid = getUuid(root)
         Object.keys(root.filters).forEach((fieldName)=>{
             const filter = root.filters[fieldName]
-            if (fieldName in refreshOptionCache.options){
-                const childField = refreshOptionCache.options[fieldName]
+            if (fieldName in refreshOptionCache[uuid].options){
+                const childField = refreshOptionCache[uuid].options[fieldName]
                 if (childField.parentId
                     && childField.parentId.length > 0
-                    && childField.parentId in refreshOptionCache.parents
+                    && childField.parentId in refreshOptionCache[uuid].parents
                     && childField.parentId in root.filters){
-                    const parentField = refreshOptionCache.parents[childField.parentId]
+                    const parentField = refreshOptionCache[uuid].parents[childField.parentId]
                     const parentFilter = root.filters[childField.parentId]
                     const parentValues = parentFilter.list.filter((option)=>option.checked).map(option=>option.value)
                     const parentValueIsChecked = (parentValue,option)=>{
@@ -110,7 +111,7 @@ if (Vue) {
                     }
                 }
             }
-            if (fieldName in refreshOptionCache.parents){
+            if (fieldName in refreshOptionCache[uuid].parents){
                 for (let index = 0; index < filter.list.length; index++) {
                     const option = filter.list[index]
                     option.forceShow = true
@@ -133,36 +134,35 @@ if (Vue) {
         return modeThanOneCheckedFiltersName
     }
 
-    const refreshOptionCache = {
-        options: {},
-        parents: {}
-    }
-    const getSanitizedIds = (root) => {
-        if (!('ids' in refreshOptionCache)){
-            refreshOptionCache.ids = (typeof root.params.id === 'string'
-             ? root.params.id.split(',')
-             : root.params.id).filter((id)=>(typeof id === 'string') && String(Number(id)) === String(id) && Number(id) > 0)
+    const refreshOptionCache = {}
+    const getUuid = (root) => {
+        const uuid = root?._uid ?? 'unknown'
+        if (!refreshOptionCache.hasOwnProperty(uuid)){
+            refreshOptionCache[uuid] = {
+                options: {},
+                parents: {}
+            }
         }
-        return refreshOptionCache.ids
+        return uuid
     }
-    const extractFormIdData = (fieldName,parentField) => {
+    const extractFormIdData = (fieldName,parentField,uuid) => {
         if (!('listOfAssociatingForms' in parentField)){
             parentField.listOfAssociatingForms = {}
         }
         parentField.childrenIds.forEach((id)=>{
             if (!(id in parentField.listOfAssociatingForms)){
-                let associatingFormId = refreshOptionCache.options[id].associatingFormId
+                let associatingFormId = refreshOptionCache[uuid].options[id].associatingFormId
                 if (associatingFormId.length > 0){
                     parentField.listOfAssociatingForms[id] = {
                         childId:id,
                         id:associatingFormId,
-                        isForm:refreshOptionCache.options[id].isForm,
-                        wantedFieldId:refreshOptionCache.options[id].associatingFieldId
+                        isForm:refreshOptionCache[uuid].options[id].isForm,
+                        wantedFieldId:refreshOptionCache[uuid].options[id].associatingFieldId
                     }
                 }
             }
         })
-        return parentField.listOfAssociatingForms[fieldName]
+        return parentField.listOfAssociatingForms?.[fieldName]
     }
     const updateSecondLevelValues = (value,filterOption,childField,parentField,secondLevelValues,formModified,associations) =>{
         parentField.secondLevelValues[value] = secondLevelValues[filterOption.name]
@@ -175,31 +175,31 @@ if (Vue) {
             }
         })
     }
-    const refreshOption = (filterOption,promisesData,root) => {
+    const refreshOption = (filterOption,promisesData,root,uuid) => {
         const field = getFieldFormRoot(root,filterOption.name)
         if (field !== null && Object.keys(field).length > 0
-            && !(filterOption.name in refreshOptionCache.options)){
+            && !(filterOption.name in refreshOptionCache[uuid].options)){
             // start refresh
-            refreshOptionCache.options[filterOption.name] = {
+            refreshOptionCache[uuid].options[filterOption.name] = {
                 status: 'refreshing',
                 linkedObjectId: '',
                 associations: {}
             }
-            refreshOptionCache.options[filterOption.name] = {
-                ...refreshOptionCache.options[filterOption.name],
+            refreshOptionCache[uuid].options[filterOption.name] = {
+                ...refreshOptionCache[uuid].options[filterOption.name],
                 ...twoLevelsHelper.formatChildField(field)
             }
-            const childField = refreshOptionCache.options[filterOption.name]
+            const childField = refreshOptionCache[uuid].options[filterOption.name]
             if ('parentFieldName' in childField && childField.parentFieldName.length > 0){
                 twoLevelsHelper.formatParentField(
-                    refreshOptionCache.parents,
+                    refreshOptionCache[uuid].parents,
                     childField,
                     ()=>{
                         return getFieldFormRoot(root,childField.parentFieldName)
                     }
                 )
-                if (childField.parentId in refreshOptionCache.parents){
-                    const parentField = refreshOptionCache.parents[childField.parentId]
+                if (childField.parentId in refreshOptionCache[uuid].parents){
+                    const parentField = refreshOptionCache[uuid].parents[childField.parentId]
                     parentField.secondLevelValues = {}
                     const optionsAsEntries = Object.entries(parentField.field.options)
                     for (let index = 0; index < optionsAsEntries.length; index++) {
@@ -213,7 +213,7 @@ if (Vue) {
                             twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
-                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache.options)
+                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache[uuid].options)
                                         .then(([secondLevelValues,formModified,associations])=>{
                                             updateSecondLevelValues(optionKey,filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                             return [secondLevelValues,formModified,associations]
@@ -235,7 +235,7 @@ if (Vue) {
                                         parentField,
                                         values,
                                         formIdData,
-                                        refreshOptionCache.options
+                                        refreshOptionCache[uuid].options
                                     )
                                     .then(([secondLevelValues,formModified,associations])=>{
                                         updateSecondLevelValues(optionKey,filterOption,childField,parentField,secondLevelValues,formModified,associations)
@@ -254,8 +254,9 @@ if (Vue) {
     }
     const refreshOptionsAsync = async (root) => {
         try {
+            const uuid = getUuid(root)
             if (!isSubLevel(root)
-                || Object.keys(refreshOptionCache.options).length > 0){
+                || Object.keys(refreshOptionCache?.[uuid].options).length > 0){
                 return
             }
             const filters = root.filters // TODO check if get computedFilters
@@ -264,8 +265,8 @@ if (Vue) {
                 if (Object.hasOwnProperty.call(filters, filterId)) {
                     const filter = filters[filterId]
                     filter.list.forEach((filterOption)=>{
-                        if (!(filterOption.name in refreshOptionCache.options)){
-                            refreshOption(filterOption,promisesData,root)
+                        if (!(filterOption.name in refreshOptionCache[uuid].options)){
+                            refreshOption(filterOption,promisesData,root,uuid)
                         }
                     })
                 }
@@ -277,8 +278,8 @@ if (Vue) {
                 root.filteredEntries = [...root.filteredEntries]
             }
             
-            Object.keys(refreshOptionCache.options).forEach((k)=>{
-                refreshOptionCache.options[k].status = 'done'
+            Object.keys(refreshOptionCache[uuid].options).forEach((k)=>{
+                refreshOptionCache[uuid].options[k].status = 'done'
                 // todo only update the right ones
             })
 
