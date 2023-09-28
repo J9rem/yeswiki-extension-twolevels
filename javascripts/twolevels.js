@@ -537,12 +537,11 @@ const getCorrespondancesReverse = async (associatingForm,fieldName,wantedFieldId
         }
     })
 }
-const getAvailableSecondLevelsValuesForLists = async (associatingForm,fieldName,parentField,values,formData,linkedObjectIdsCache)=>{
-    const reverseMode = formData.isForm
+const getAvailableSecondLevelsValuesForLists = async (associatingForm,fieldName,parentField,values,formData,linkedObjectIdsCache,reverseMode)=>{
     let correspondances = null
     let propNames = {}
     if (!reverseMode){
-        associatingForm = appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField,extractLinkedObjects(linkedObjectIdsCache),true)
+        associatingForm = appendChildrenFieldsPropertyNamestoParentForm(associatingForm,parentField,extractLinkedObjects(linkedObjectIdsCache),reverseMode)
         associatingForm = appendParentsFieldsPropertyNamestoParentForm(associatingForm,fieldName,parentField)
         correspondances = await getCorrespondances(associatingForm,fieldName,parentField)
         propNames = associatingForm.childrenFieldsPropertyNames

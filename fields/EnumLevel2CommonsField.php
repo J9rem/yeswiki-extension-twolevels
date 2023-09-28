@@ -104,9 +104,11 @@ trait EnumLevel2CommonsTrait
         if (!empty($parentField)) {
             $values = $this->getFieldValues($this, $entry);
             $parentValues = $this->getFieldValues($parentField, $entry);
-            if (!empty($this->getAssociatingFormId())) {
+            $assocFormId = $this->getAssociatingFormId();
+            if (!empty($assocFormId)
+                && (strval($assocFormId) !== strval(intval($assocFormId)) || $assocFormId !== $parentField->getLinkedObjectName())) {
                 $formId = $this->formatFormId($this->getLinkedObjectName());
-                $associatingFormId = $this->formatFormId($this->getAssociatingFormId());
+                $associatingFormId = $this->formatFormId($assocFormId);
                 if (!empty($formId) && $formId == $associatingFormId){
                     $availableValues = $this->getAvailableChildrenValuesReverseFromForm($parentValues, $parentField->getLinkedObjectName());
                 } else {

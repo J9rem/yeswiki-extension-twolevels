@@ -671,7 +671,14 @@ const enumlevel2Helper = {
                     if (parentField && parentField.linkedObjectId.length > 0){
                         let values = this.getParentFieldNameValues(parentField)
                         const formsIds = this.extractListOfAssociatingForms(fieldName,parentField)
-                        if (parentField.isForm && formsIds.length === 0){
+                        const canGetSecondValuesByForm = parentField.isForm && (
+                                formsIds.length === 0 // no associatingForm => form
+                                || (
+                                    formsIds.length === 1
+                                    && String(formsIds[0].id) === String(parentField.linkedObjectId) // same as form for primary level
+                                )
+                            )
+                        if (canGetSecondValuesByForm){
                             twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
@@ -692,7 +699,15 @@ const enumlevel2Helper = {
                                 twoLevelsHelper.createPromise(promisesData,{
                                     formId,
                                     processFormAsync: async (form)=>{
-                                        return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(form,fieldName,parentField,values,formIdData,this.levels2)
+                                        return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(
+                                            form,
+                                            fieldName,
+                                            parentField,
+                                            values,
+                                            formIdData,
+                                            this.levels2,
+                                            formIdData.isForm && formId === this.levels2?.[formIdData.childId]?.linkedObjectId
+                                        )
                                         .then(([secondLevelValues,formModified,associations])=>{
                                             this.updateSecondLevel(secondLevelValues,isInit,associations)
                                             return [secondLevelValues,formModified,associations]

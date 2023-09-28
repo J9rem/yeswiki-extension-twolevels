@@ -175,6 +175,14 @@ if (Vue) {
             }
         })
     }
+    const canGetSecondValuesByForm = (parentField,formIdData) => {
+        const res = parentField.isForm && (
+                !(formIdData?.id?.length > 0) // no associatingForm => form
+                || String(formIdData?.id) === String(parentField.linkedObjectId) // same as form for primary level
+            )
+        return res
+    }
+
     const refreshOption = (filterOption,promisesData,root,uuid) => {
         const field = getFieldFormRoot(root,filterOption.name)
         if (field !== null && Object.keys(field).length > 0
@@ -205,11 +213,8 @@ if (Vue) {
                     for (let index = 0; index < optionsAsEntries.length; index++) {
                         const optionKey = optionsAsEntries[index][0]
                         const values = [optionKey]
-                        const formIdData = extractFormIdData(filterOption.name,parentField)
-                        if (parentField.isForm && (
-                            !(formIdData?.id?.length > 0)
-                            || String(formIdData?.id) === String(parentField.linkedObjectId)
-                            ) ){
+                        const formIdData = extractFormIdData(filterOption.name,parentField,uuid)
+                        if (canGetSecondValuesByForm(parentField,formIdData)){
                             twoLevelsHelper.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
@@ -235,7 +240,8 @@ if (Vue) {
                                         parentField,
                                         values,
                                         formIdData,
-                                        refreshOptionCache[uuid].options
+                                        refreshOptionCache[uuid].options,
+                                        formIdData.isForm && formId === childField.linkedObjectId
                                     )
                                     .then(([secondLevelValues,formModified,associations])=>{
                                         updateSecondLevelValues(optionKey,filterOption,childField,parentField,secondLevelValues,formModified,associations)
