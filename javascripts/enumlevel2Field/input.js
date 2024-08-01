@@ -426,7 +426,9 @@ const enumlevel2Helper = {
                     childField.type = field.type
                     childField.node = 'node' in field ? field.node : null 
                     childField.nodes = 'nodes' in field ? field.nodes : null 
-                    childField.linkedObjectId = field.linkedObjectId 
+                    childField.linkedObjectId = field?.linkedObjectId?.length > 0
+                        ? field?.linkedObjectId
+                        : (fieldData?.linkedObjectName ?? '')
                     twoLevelsHelper.formatParentField(
                         this.parents,
                         childField,
