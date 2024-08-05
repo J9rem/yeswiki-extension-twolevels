@@ -295,7 +295,13 @@ trait EnumLevel2CommonsTrait
             $fields = [];
             foreach ($form['prepared'] as $field) {
                 if ($field instanceof EnumField && $field->getLinkedObjectName() == $parentLinkedObjectName && $field->getPropertyName() !== "") {
-                    if (!empty($this->associatingFieldId) && $this->associatingFieldId == $field->getName()) {
+                    if (
+                        !empty($this->associatingFieldId)
+                        && (
+                            $this->associatingFieldId == $field->getName()
+                                || $field->getName() === ($field->getType() . $field->getLinkedObjectName() . $this->associatingFieldId)
+                        )
+                    ) {
                         $fields = [$field];
                         break;
                     }
