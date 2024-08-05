@@ -74,12 +74,12 @@ trait EnumLevel2CommonsTrait
             ? $matches[1]
             : "";
 
-            
+
         $this->associatingFieldId = $explodedParam[2] ?? '';
         $this->associatingFieldId = (
-            !empty($this->associatingFieldId) && 
-            !empty($this->associatingFormId) && 
-            substr($internalValues[parent::FIELD_TYPE],-5) == 'fiche' // current is form
+            !empty($this->associatingFieldId) &&
+            !empty($this->associatingFormId) &&
+            substr($internalValues[parent::FIELD_TYPE], -5) == 'fiche' // current is form
         ) ? strval($this->associatingFieldId) : '';
 
         // construct with parent
@@ -93,7 +93,7 @@ trait EnumLevel2CommonsTrait
     public function renderInputIfPermitted($entry)
     {
         return $this->render("@bazar/inputs/enum-level2.twig", [])
-            .parent::renderInputIfPermitted($entry);
+            . parent::renderInputIfPermitted($entry);
     }
 
     // Format input values before save
@@ -109,7 +109,7 @@ trait EnumLevel2CommonsTrait
                 && (strval($assocFormId) !== strval(intval($assocFormId)) || $assocFormId !== $parentField->getLinkedObjectName())) {
                 $formId = $this->formatFormId($this->getLinkedObjectName());
                 $associatingFormId = $this->formatFormId($assocFormId);
-                if (!empty($formId) && $formId == $associatingFormId){
+                if (!empty($formId) && $formId == $associatingFormId) {
                     $availableValues = $this->getAvailableChildrenValuesReverseFromForm($parentValues, $parentField->getLinkedObjectName());
                 } else {
                     $availableValues = $this->getAvailableChildrenValuesFromLists($parentValues, $parentField->getLinkedObjectName());
@@ -142,7 +142,31 @@ trait EnumLevel2CommonsTrait
         }
         $formId = $this->formatFormId($entry['id_typeannonce'] ?? '');
         $formManager = $this->getService(FormManager::class);
-        return empty($formId) ? null : $formManager->findFieldFromNameOrPropertyName($parentFieldName, $formId);
+        if (empty($formId)) {
+            return null;
+        }
+        $form = $formManager->getOne($formId);
+        if (empty($form['prepared']) || !is_array($form['prepared'])) {
+            return null;
+        }
+        foreach ($form['prepared'] as $field) {
+            if (
+                $field instanceof EnumField
+                && (
+                    $field->getName() === $parentFieldName
+                    || in_array(
+                        $field->getPropertyName(),
+                        [
+                           $parentFieldName,
+                           $field->getType() . $field->getLinkedObjectName() . $parentFieldName
+                        ]
+                    )
+                )
+            ) {
+                return $field;
+            }
+        }
+        return null;
     }
 
     protected function formatFormId($formId): string
@@ -244,7 +268,7 @@ trait EnumLevel2CommonsTrait
                             $parentValuesInEntry = $this->getFieldValues($parentField, $entry);
                             if (count(array_filter($parentValues, function ($v) use ($parentValuesInEntry) {
                                 return in_array($v, $parentValuesInEntry);
-                            }))>0) {
+                            })) > 0) {
                                 $childrenValuesInEntry = $this->getFieldValues($childField, $entry);
                                 foreach ($childrenValuesInEntry as $value) {
                                     if (!in_array($value, $availableValues)) {
@@ -271,7 +295,7 @@ trait EnumLevel2CommonsTrait
             $fields = [];
             foreach ($form['prepared'] as $field) {
                 if ($field instanceof EnumField && $field->getLinkedObjectName() == $parentLinkedObjectName && $field->getPropertyName() !== "") {
-                    if (!empty($this->associatingFieldId) && $this->associatingFieldId == $field->getName()){
+                    if (!empty($this->associatingFieldId) && $this->associatingFieldId == $field->getName()) {
                         $fields = [$field];
                         break;
                     }
@@ -288,9 +312,9 @@ trait EnumLevel2CommonsTrait
                     ]
                 ]);
                 if (!empty($entries)) {
-                    $availableValues= array_map(function($entry){
+                    $availableValues = array_map(function ($entry) {
                         return $entry['id_fiche'];
-                    },$entries);
+                    }, $entries);
                 }
             }
         }
