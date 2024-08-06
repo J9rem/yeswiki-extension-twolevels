@@ -7,6 +7,8 @@
  * file that was distributed with this source code.
  */
 
+import fieldService from './field.service.js'
+
 const getFilterFromPropName = (filterName, filters) => {
     return !(filterName?.length > 0)
         ? null
@@ -31,6 +33,20 @@ const getFilterFromPropName = (filterName, filters) => {
         )
 }
 
+const updateNbForEachFilter = (root,fieldName,availableEntriesForThisFilter) => {
+    const filter = root.filters[fieldName]
+    for (let option of (filter?.list ?? filter.nodes)) {
+        if (typeof customCalculatebFromAvailableEntries == "function"){
+            // allow usage of custom function if available
+            root.$set(option,'nb',customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName))
+        } else {
+            root.$set(option,'nb',fieldService.getEntriesForThisField(availableEntriesForThisFilter,fieldName,(values)=>values.some((value)=>value == option.value)).length)
+        }
+        root.$set(option,'count', option.nb)
+    }
+}
+
 export default {
-    getFilterFromPropName
+    getFilterFromPropName,
+    updateNbForEachFilter
 }
