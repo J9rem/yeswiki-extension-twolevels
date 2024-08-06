@@ -14,7 +14,7 @@ const getFilterFromPropName = (filterName, filters) => {
         ? null
         : (
             filterName in filters
-            ? filterName
+            ? filters[filterName]
             : filters.reduce((previousFilter, filter) => {
                 return previousFilter !== null
                     ? previousFilter
