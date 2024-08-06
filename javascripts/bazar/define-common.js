@@ -9,7 +9,9 @@
 
 import allEntriesLoader from '../allEntriesLoader.service.js'
 import formPromisesManager from '../formPromises.service.js'
+import FilterLoadRoot from './FilterLoadRootComponent.js'
 import twoLevelsHelper from '../twolevels.js'
+import utils from './RootVueJsComponentUtil.js'
 
 if (Vue) {
     let isSubLevelCache = null
@@ -23,25 +25,6 @@ if (Vue) {
         return isSubLevelCache
     }
 
-    const canShowAnd = (root) => {
-        return (root.params.intrafiltersmode === 'and')
-    }
-
-    const filterEntriesSync = (entries,root) => {
-        if (!canShowAnd(root)){
-            return entries
-        }
-        let results = entries
-        for(const filterId in root.computedFilters) {
-            results = results.filter(entry => {
-                if (!(filterId in entry) || typeof entry[filterId] != "string"){
-                    return false
-                }
-                return root.computedFilters[filterId].every((value)=>entry[filterId].split(',').includes(value));
-            })
-        }
-        return results
-    }
 
     const getEntriesForThisField = (entries,fieldName,test) => {
         return entries.filter(entry => {
@@ -64,7 +47,11 @@ if (Vue) {
             for (const key in root.formFields) {
                 if (Object.hasOwnProperty.call(root.formFields, key)) {
                     const field = root.formFields[key];
-                    if ('name' in field && field.name === fieldName){
+                    if ('name' in field && (
+                                field.name === fieldName
+                                || field.name === ('' + field.type + field.linkedObjectName + fieldName)
+                            )
+                        ){
                         return field
                     }
                 }
@@ -74,14 +61,40 @@ if (Vue) {
     }
 
     const updateNbForEachFilter = (root,fieldName,availableEntriesForThisFilter) => {
-        for (let option of root.filters[fieldName].list) {
+        const filter = root.filters[fieldName]
+        for (let option of (filter?.list ?? filter.nodes)) {
             if (typeof customCalculatebFromAvailableEntries == "function"){
                 // allow usage of custom function if available
-                option.nb = customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName)
+                root.$set(option,'nb',customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName))
             } else {
-                option.nb = getEntriesForThisField(availableEntriesForThisFilter,fieldName,(values)=>values.some((value)=>value == option.value)).length
+                root.$set(option,'nb',getEntriesForThisField(availableEntriesForThisFilter,fieldName,(values)=>values.some((value)=>value == option.value)).length)
             }
+            root.$set(option,'count', option.nb)
         }
+    }
+
+    const getFilterFromPropName = (filterName, filters) => {
+        return !(filterName?.length > 0)
+            ? null
+            : (
+                filterName in filters
+                ? filterName
+                : filters.reduce((previousFilter, filter) => {
+                    return previousFilter !== null
+                        ? previousFilter
+                        : (
+                            (
+                                filter?.propName == filterName
+                                || (
+                                    filter?.propName?.slice(-filterName.length) == filterName
+                                    && filter?.propName?.slice(0,-filterName.length)?.match(/^(liste|radio|checkbox)(Liste\S+|\d+)/)
+                                )
+                            )
+                            ? filter
+                            : null
+                        )
+                }, null)
+            )
     }
 
     const updateVisibilityIfSublevel = (root) => {
@@ -89,33 +102,33 @@ if (Vue) {
             return
         }
         const uuid = getUuid(root)
-        Object.keys(root.filters).forEach((fieldName)=>{
-            const filter = root.filters[fieldName]
+        Object.entries(root.filters).forEach(([key,filter])=>{
+            const fieldName = filter?.propName ?? key
             if (fieldName in refreshOptionCache[uuid].options){
                 const childField = refreshOptionCache[uuid].options[fieldName]
+                const parentFilter = getFilterFromPropName(childField?.parentId ?? '', root.filters)
                 if (childField.parentId
                     && childField.parentId.length > 0
                     && childField.parentId in refreshOptionCache[uuid].parents
-                    && childField.parentId in root.filters){
+                    && parentFilter){
                     const parentField = refreshOptionCache[uuid].parents[childField.parentId]
-                    const parentFilter = root.filters[childField.parentId]
-                    const parentValues = parentFilter.list.filter((option)=>option.checked).map(option=>option.value)
+                    const parentValues = (parentFilter?.list ?? parentFilter?.nodes ?? []).filter((option)=>option.checked).map(option=>option.value)
                     const parentValueIsChecked = (parentValue,option)=>{
                         return (parentValue in parentField.secondLevelValues)
                             ? parentField.secondLevelValues[parentValue].includes(option.value)
                             : false
                     }
-                    for (let index = 0; index < filter.list.length; index++) {
-                        const option = filter.list[index]
-                        option.hide = canShowAnd(root)
+                    for (let index = 0; index < (filter?.list ?? filter.nodes).length; index++) {
+                        const option = (filter?.list ?? filter.nodes)[index]
+                        option.hide = utils.canShowAnd(root)
                             ? !parentValues.every((parentValue)=>parentValueIsChecked(parentValue,option))
                             : !parentValues.some((parentValue)=>parentValueIsChecked(parentValue,option))
                     }
                 }
             }
             if (fieldName in refreshOptionCache[uuid].parents){
-                for (let index = 0; index < filter.list.length; index++) {
-                    const option = filter.list[index]
+                for (let index = 0; index < (filter?.list ?? filter.nodes).length; index++) {
+                    const option = (filter?.list ?? filter.nodes)[index]
                     option.forceShow = true
                 }
             }
@@ -125,7 +138,8 @@ if (Vue) {
     const getCheckedFiltersWithMoreThanOne = (root) => {
         let modeThanOneCheckedFiltersName = [];
         for(let fieldName in root.filters) {
-            for (let option of root.filters[fieldName].list) {
+            const filter = root.filters[fieldName]
+            for (let option of (filter?.list ?? filter.nodes)) {
                 if (option.checked) {
                     if (!modeThanOneCheckedFiltersName.includes(fieldName)){
                         modeThanOneCheckedFiltersName.push(fieldName)
@@ -166,9 +180,10 @@ if (Vue) {
         })
         return parentField.listOfAssociatingForms?.[fieldName]
     }
-    const updateSecondLevelValues = (value,filterOption,childField,parentField,secondLevelValues,formModified,associations) =>{
-        parentField.secondLevelValues[value] = secondLevelValues[filterOption.name]
-        Object.entries(associations[filterOption.name]).forEach(([val,parentValue])=>{
+    const updateSecondLevelValues = (value,filterId,filterOption,childField,parentField,secondLevelValues,formModified,associations) =>{
+        const propName = filterOption?.name ?? filterId
+        parentField.secondLevelValues[value] = secondLevelValues[propName]
+        Object.entries(associations[propName]).forEach(([val,parentValue])=>{
             if (!(val in childField.associations)){
                 childField.associations[val] = []
             }
@@ -185,21 +200,21 @@ if (Vue) {
         return res
     }
 
-    const refreshOption = (filterOption,promisesData,root,uuid) => {
-        const field = getFieldFormRoot(root,filterOption.name)
+    const refreshOption = (filterId, filterOption,promisesData,root,uuid) => {
+        const field = getFieldFormRoot(root,filterId)
         if (field !== null && Object.keys(field).length > 0
-            && !(filterOption.name in refreshOptionCache[uuid].options)){
+            && !(filterId in refreshOptionCache[uuid].options)){
             // start refresh
-            refreshOptionCache[uuid].options[filterOption.name] = {
+            refreshOptionCache[uuid].options[filterId] = {
                 status: 'refreshing',
                 linkedObjectId: '',
                 associations: {}
             }
-            refreshOptionCache[uuid].options[filterOption.name] = {
-                ...refreshOptionCache[uuid].options[filterOption.name],
+            refreshOptionCache[uuid].options[filterId] = {
+                ...refreshOptionCache[uuid].options[filterId],
                 ...twoLevelsHelper.formatChildField(field)
             }
-            const childField = refreshOptionCache[uuid].options[filterOption.name]
+            const childField = refreshOptionCache[uuid].options[filterId]
             if ('parentFieldName' in childField && childField.parentFieldName.length > 0){
                 twoLevelsHelper.formatParentField(
                     refreshOptionCache[uuid].parents,
@@ -215,14 +230,14 @@ if (Vue) {
                     for (let index = 0; index < optionsAsEntries.length; index++) {
                         const optionKey = optionsAsEntries[index][0]
                         const values = [optionKey]
-                        const formIdData = extractFormIdData(filterOption.name,parentField,uuid)
+                        const formIdData = extractFormIdData(filterId,parentField,uuid)
                         if (canGetSecondValuesByForm(parentField,formIdData)){
                             formPromisesManager.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache[uuid].options)
                                         .then(([secondLevelValues,formModified,associations])=>{
-                                            updateSecondLevelValues(optionKey,filterOption,childField,parentField,secondLevelValues,formModified,associations)
+                                            updateSecondLevelValues(optionKey,filterId,filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                             return [secondLevelValues,formModified,associations]
                                         })
                                 },
@@ -246,7 +261,7 @@ if (Vue) {
                                         formIdData.isForm && formId === childField.linkedObjectId
                                     )
                                     .then(([secondLevelValues,formModified,associations])=>{
-                                        updateSecondLevelValues(optionKey,filterOption,childField,parentField,secondLevelValues,formModified,associations)
+                                        updateSecondLevelValues(optionKey,filterId,filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                         return [secondLevelValues,formModified,associations]
                                     })
                                 },
@@ -271,10 +286,11 @@ if (Vue) {
             let promisesData = formPromisesManager.initPromisesData()
             for (const filterId in filters) {
                 if (Object.hasOwnProperty.call(filters, filterId)) {
-                    const filter = filters[filterId]
-                    filter.list.forEach((filterOption)=>{
-                        if (!(filterOption.name in refreshOptionCache[uuid].options)){
-                            refreshOption(filterOption,promisesData,root,uuid)
+                    const filter = filters[filterId];
+                    (filter?.list ?? filter?.nodes).forEach((filterOption)=>{
+                        const filterPropName = filterOption?.name ?? filter.propName
+                        if (!(filterPropName in refreshOptionCache[uuid].options)){
+                            refreshOption(filterPropName,filterOption,promisesData,root,uuid)
                         }
                     })
                 }
@@ -298,58 +314,19 @@ if (Vue) {
 
     Vue.prototype.isDisplayedFilterOption = function(filterOption,root){
         return root.params.autohidefilter === "false" // main param
-            || (!canShowAnd(root) && filterOption.checked) // display if checked in all case
+            || (!utils.canShowAnd(root) && filterOption.checked) // display if checked in all case
             || (root.params.keepallparents !== "false" && filterOption.forceShow === true) // display if parentField of sublevel
-            || (filterOption.hide !== true &&  filterOption.nb > 0) // hide or at least one element
+            || (filterOption.hide !== true && (filterOption?.nb ?? filterOption.count) > 0) // hide or at least one element
     }
     Vue.prototype.filterHasAtLeastOneOption = function(filter,root){
         if (typeof customfilterHasAtLeastOneOption == "function"){
             // allow usage of custom function if available
             return customfilterHasAtLeastOneOption(filter,root)
         } else {
-            return filter.list.some((filterOption)=>Vue.prototype.isDisplayedFilterOption(filterOption,root));
+            return (filter?.list ?? filter.nodes).some((filterOption)=>Vue.prototype.isDisplayedFilterOption(filterOption,root));
         }
     }
-    Vue.component('FilterLoadRoot', {
-        props: ['root'],
-        data: function(){
-            return {
-                actions: {
-                    filteredEntries: 'updateFilteredEntries',
-                    params: 'processParams'
-                },
-                unwatcher: {}
-            };
-        },
-        methods: {
-            processParams: function(){
-                this.unwatcher.params();
-                if (canShowAnd(this.root)){
-                    this.registerWatcher('filteredEntries');
-                }
-            },
-            registerWatcher: function(varname){
-                if (varname in this.actions && typeof this[this.actions[varname]] == "function"){
-                    this.unwatcher[varname] = this.root.$watch(varname,()=>(this[this.actions[varname]])())
-                }
-            },
-            updateFilteredEntries: function(){
-                if (Object.keys(this.root.computedFilters).length > 0){
-                    const results = filterEntriesSync(this.root.searchedEntries,this.root)
-                    this.unwatcher.filteredEntries();
-                    this.root.filteredEntries = results
-                    this.registerWatcher('filteredEntries');
-                    this.root.paginateEntries();
-                }
-            }
-        },
-        mounted(){
-            this.registerWatcher('params');
-        },
-        template: `
-        <span v-show="false"></span>
-        `
-    });
+    Vue.component('FilterLoadRoot', FilterLoadRoot);
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
         refreshOptionsAsync(root)
         const modeThanOneCheckedFiltersName = getCheckedFiltersWithMoreThanOne(root)
@@ -366,7 +343,8 @@ if (Vue) {
                             availableEntriesForThisFilter,
                             otherFieldName,
                             (values)=>{
-                                return root.filters[otherFieldName].list.some((option)=>option.checked && values.some(value=>value == option.value))
+                                const filter = root.filters[otherFieldName]
+                                return (filter?.list ?? filter.nodes).some((option)=>option.checked && values.some(value=>value == option.value))
                             }
                         )
                 });
@@ -375,7 +353,7 @@ if (Vue) {
                     ? root.filteredEntries.filter(entry => entry.bf_latitude && entry.bf_longitude)
                     : root.filteredEntries
             }
-            availableEntriesForThisFilter = filterEntriesSync(availableEntriesForThisFilter,root)
+            availableEntriesForThisFilter = utils.filterEntriesSync(availableEntriesForThisFilter,root)
             updateNbForEachFilter(root,fieldName,availableEntriesForThisFilter)
             updateVisibilityIfSublevel(root)
         }
