@@ -7,6 +7,7 @@
  * file that was distributed with this source code.
  */
 
+import filtersService from './filters.service.js'
 import optionRegistry from './options.registry.js'
 
 const canShowAnd = (root) => {
@@ -84,11 +85,11 @@ const pushIfNotPresent = (value,data) => {
 
 const getChekedFilters = (root) => {
     let filters = [];
-    for(let fieldName in root.filters) {
-        const filter = root.filters[fieldName]
+    for(let fieldid in root.filters) {
+        const filter = root.filters[fieldid]
         for (let option of (filter?.list ?? filter.nodes)) {
             if (option.checked) {
-                pushIfNotPresent(fieldName,{a:filters})
+                pushIfNotPresent(filtersService.getFieldName(filter,option),{a:filters})
             }
         }
     }

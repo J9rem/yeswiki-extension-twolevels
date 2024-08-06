@@ -33,11 +33,12 @@ const filterHasAtLeastOneOption = (filter,root) => {
 const refreshedFiltersWithentries = (entries,root) => {
     optionsManager.refreshOptionsAsync(root)
     const modeThanOneCheckedFiltersName = utils.getChekedFilters(root)
-    for(let fieldName in root.filters) {
+    for(let fieldId in root.filters) {
         let availableEntriesForThisFilter = root.searchedEntries;
         if (root.params.template === "map"){
             availableEntriesForThisFilter = availableEntriesForThisFilter.filter(entry => entry.bf_latitude && entry.bf_longitude)
         }
+        const fieldName = filtersService.getFieldName(root.filters[fieldId])
         if (modeThanOneCheckedFiltersName.includes(fieldName)){
             modeThanOneCheckedFiltersName
                 .filter(fName=>fName!=fieldName)
@@ -46,7 +47,7 @@ const refreshedFiltersWithentries = (entries,root) => {
                         availableEntriesForThisFilter,
                         otherFieldName,
                         (values)=>{
-                            const filter = root.filters[otherFieldName]
+                            const filter = filtersService.getFilterFromPropName(otherFieldName, root.filters)
                             return (filter?.list ?? filter.nodes).some((option)=>option.checked && values.some(value=>value == option.value))
                         }
                     )

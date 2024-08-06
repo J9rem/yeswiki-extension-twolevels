@@ -11,6 +11,7 @@ import allEntriesLoader from '../allEntriesLoader.service.js'
 import formPromisesManager from '../formPromises.service.js'
 import twoLevelsHelper from '../twolevels.js'
 import fieldService from './field.service.js'
+import filtersService from './filters.service.js'
 import utils from './RootVueJsComponentUtil.js'
 
 const updateSecondLevelValues = (value,filterId,filterOption,childField,parentField,secondLevelValues,associations) =>{
@@ -124,7 +125,7 @@ const refreshOptionsAsync = async (root) => {
             if (Object.hasOwnProperty.call(filters, filterId)) {
                 const filter = filters[filterId];
                 (filter?.list ?? filter?.nodes).forEach((filterOption)=>{
-                    const filterPropName = filterOption?.name ?? filter.propName
+                    const filterPropName = filtersService.getFieldName(filter,filterOption)
                     if (!(filterPropName in optionData.options)){
                         refreshOption(filterPropName,filterOption,promisesData,root,optionData)
                     }

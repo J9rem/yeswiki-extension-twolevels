@@ -33,20 +33,42 @@ const getFilterFromPropName = (filterName, filters) => {
         )
 }
 
+const getFieldName = (filter, filterOption = null) => {
+    return filterOption?.name ?? filter?.propName ?? filter?.list?.[0]?.name ?? null
+}
+
 const updateNbForEachFilter = (root,fieldName,availableEntriesForThisFilter) => {
-    const filter = root.filters[fieldName]
+    const filter = getFilterFromPropName(fieldName,root.filters)
     for (let option of (filter?.list ?? filter.nodes)) {
-        if (typeof customCalculatebFromAvailableEntries == "function"){
+        const nb = (typeof window?.customCalculatebFromAvailableEntries == "function")
             // allow usage of custom function if available
-            root.$set(option,'nb',customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName))
+            ? window.customCalculatebFromAvailableEntries(option,availableEntriesForThisFilter,root,fieldName)
+            : fieldService.getEntriesForThisField(
+                    availableEntriesForThisFilter,
+                    fieldName,
+                    (values) => values.some((value)=>value == option.value)
+                ).length
+        if ('nb' in option) {
+            // prevent infinite loop
+            if (option.nb != nb) {
+                option.nb = nb
+            }
         } else {
-            root.$set(option,'nb',fieldService.getEntriesForThisField(availableEntriesForThisFilter,fieldName,(values)=>values.some((value)=>value == option.value)).length)
+            root.$set(option,'nb',nb)
         }
-        root.$set(option,'count', option.nb)
+        if ('count' in option) {
+            // prevent infinite loop
+            if (option.count != nb) {
+                option.count = nb
+            }
+        } else {
+            root.$set(option,'count', nb)
+        }
     }
 }
 
 export default {
+    getFieldName,
     getFilterFromPropName,
     updateNbForEachFilter
 }
