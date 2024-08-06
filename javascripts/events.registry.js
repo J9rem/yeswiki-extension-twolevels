@@ -7,27 +7,20 @@
  * file that was distributed with this source code.
  */
 
-import Event from './event.js'
+import Event from './event.prototype.js'
+import Registry from './registry.prototype.js'
 
-/* data */
-const eventsByName = {}
+const registry = new Registry()
 
 /* methods */
 const add = (eventName, listener, once = false) => {
-    if (typeof eventName === "string"){
-        if (!(eventName in eventsByName)){
-            eventsByName[eventName] = []
-        }
-        eventsByName[eventName].push(new Event(eventName, listener, once))
-    }
+    registry.add(eventName, new Event(eventName, listener, once))
 }
 const get = (eventName) => {
-    return typeof eventName === "string" ? (eventsByName?.[eventName] ?? null) : null
+    return registry.get(eventName)
 }
 const set = (eventName, events) => {
-    if (typeof eventName === "string" && eventName in eventsByName) {
-        eventsByName[eventName] = events
-    }
+    registry.set(eventName, events)
 }
 
 export default {

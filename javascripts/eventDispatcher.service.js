@@ -8,10 +8,10 @@
  */
 
 import eventsRegistry from './events.registry.js'
+import Registry from './registry.prototype.js'
 
-/** data */
-
-const events = {}
+/** cache */
+const registry = new Registry()
 
 /** methods */
 
@@ -39,20 +39,53 @@ const cleanEvent = (eventName) => {
     )
 }
 
-const dispatchEvent = (eventName, param = undefined) => {
-    
+const dispatchEvent = (eventName, args = undefined) => {
     eventsRegistry.get(eventName)?.forEach((listener) => {
         listener.setTriggered(true)
-        if (param != undefined){
-            listener.getListener()(param)
+        if (args != undefined){
+            listener.getListener().apply(null,args)
         } else {
-            listener.getListener()()
+            listener.getListener().call(null)
         }
     })
     cleanEvent(eventName)
 }
 
+const resetLoading = (id,cacheName) => {
+    registry.set(
+        cacheName,
+        registry.get(cacheName)?.filter((idToCheck) => idToCheck != id )
+    )
+}
+
+const manageInternalEvents = async (id,eventPrefix,cacheName,asynFunc)=>{
+    let p = new Promise((resolve,reject)=>{
+        const readyName = `${eventPrefix}.${id}.ready`
+        const errorName = `${eventPrefix}.${id}.error`
+        addEventOnce(readyName,(...args)=>resolve(...args))
+        addEventOnce(errorName,(e)=>reject(e))
+        if (!(registry.get(cacheName)?.includes(id) ?? false)) {
+            registry.add(cacheName, id)
+            
+            addEventOnce(errorName,() => resetLoading(id,cacheName))
+            addEventOnce(readyName,() => resetLoading(id,cacheName))
+            addEventOnce(readyName,()=>{
+                triggerEvent(errorName)
+            })
+            asynFunc()
+                .catch((e) => {
+                    dispatchEvent(errorName,[e])
+                })
+                .then((...args)=>{
+                    dispatchEvent(readyName, args)
+                    return true
+                })
+                .catch((e)=>console.error(e))
+        }
+    })
+    return await p
+}
+
 export default {
-    addEventOnce,
-    dispatchEvent
+    manageInternalEvents
 }

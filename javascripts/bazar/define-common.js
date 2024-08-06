@@ -7,6 +7,7 @@
  * file that was distributed with this source code.
  */
 
+import allEntriesLoader from '../allEntriesLoader.service.js'
 import twoLevelsHelper from '../twolevels.js'
 
 if (Vue) {
@@ -249,7 +250,7 @@ if (Vue) {
                                     })
                                 },
                                 getEntriesAsync: ()=>{
-                                    return twoLevelsHelper.getAllEntries(formId)
+                                    return allEntriesLoader.load(formId)
                                 },
                                 getEntriesLabel: `getting all entries of form ${formId}`})
                         }
