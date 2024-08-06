@@ -90,17 +90,17 @@ if (Vue) {
         if (!utils.isSubLevel(root)){
             return
         }
-        const uuid = getUuid(root)
+        const optionData = utils.getOptionData(root)
         Object.entries(root.filters).forEach(([key,filter])=>{
             const fieldName = filter?.propName ?? key
-            if (fieldName in refreshOptionCache[uuid].options){
-                const childField = refreshOptionCache[uuid].options[fieldName]
+            if (fieldName in optionData.options){
+                const childField = optionData.options[fieldName]
                 const parentFilter = getFilterFromPropName(childField?.parentId ?? '', root.filters)
                 if (childField.parentId
                     && childField.parentId.length > 0
-                    && childField.parentId in refreshOptionCache[uuid].parents
+                    && childField.parentId in optionData.parents
                     && parentFilter){
-                    const parentField = refreshOptionCache[uuid].parents[childField.parentId]
+                    const parentField = optionData.parents[childField.parentId]
                     const parentValues = (parentFilter?.list ?? parentFilter?.nodes ?? []).filter((option)=>option.checked).map(option=>option.value)
                     const parentValueIsChecked = (parentValue,option)=>{
                         return (parentValue in parentField.secondLevelValues)
@@ -115,7 +115,7 @@ if (Vue) {
                     }
                 }
             }
-            if (fieldName in refreshOptionCache[uuid].parents){
+            if (fieldName in optionData.parents){
                 for (let index = 0; index < (filter?.list ?? filter.nodes).length; index++) {
                     const option = (filter?.list ?? filter.nodes)[index]
                     option.forceShow = true
@@ -139,30 +139,19 @@ if (Vue) {
         return modeThanOneCheckedFiltersName
     }
 
-    const refreshOptionCache = {}
-    const getUuid = (root) => {
-        const uuid = root?._uid ?? 'unknown'
-        if (!refreshOptionCache.hasOwnProperty(uuid)){
-            refreshOptionCache[uuid] = {
-                options: {},
-                parents: {}
-            }
-        }
-        return uuid
-    }
-    const extractFormIdData = (fieldName,parentField,uuid) => {
+    const extractFormIdData = (fieldName,parentField,optionData) => {
         if (!('listOfAssociatingForms' in parentField)){
             parentField.listOfAssociatingForms = {}
         }
         parentField.childrenIds.forEach((id)=>{
             if (!(id in parentField.listOfAssociatingForms)){
-                let associatingFormId = refreshOptionCache[uuid].options[id].associatingFormId
+                let associatingFormId = optionData.options[id].associatingFormId
                 if (associatingFormId.length > 0){
                     parentField.listOfAssociatingForms[id] = {
                         childId:id,
                         id:associatingFormId,
-                        isForm:refreshOptionCache[uuid].options[id].isForm,
-                        wantedFieldId:refreshOptionCache[uuid].options[id].associatingFieldId
+                        isForm:optionData.options[id].isForm,
+                        wantedFieldId:optionData.options[id].associatingFieldId
                     }
                 }
             }
@@ -189,42 +178,42 @@ if (Vue) {
         return res
     }
 
-    const refreshOption = (filterId, filterOption,promisesData,root,uuid) => {
+    const refreshOption = (filterId, filterOption,promisesData,root,optionData) => {
         const field = getFieldFormRoot(root,filterId)
         if (field !== null && Object.keys(field).length > 0
-            && !(filterId in refreshOptionCache[uuid].options)){
+            && !(filterId in optionData.options)){
             // start refresh
-            refreshOptionCache[uuid].options[filterId] = {
+            optionData.options[filterId] = {
                 status: 'refreshing',
                 linkedObjectId: '',
                 associations: {}
             }
-            refreshOptionCache[uuid].options[filterId] = {
-                ...refreshOptionCache[uuid].options[filterId],
+            optionData.options[filterId] = {
+                ...optionData.options[filterId],
                 ...twoLevelsHelper.formatChildField(field)
             }
-            const childField = refreshOptionCache[uuid].options[filterId]
+            const childField = optionData.options[filterId]
             if ('parentFieldName' in childField && childField.parentFieldName.length > 0){
                 twoLevelsHelper.formatParentField(
-                    refreshOptionCache[uuid].parents,
+                    optionData.parents,
                     childField,
                     ()=>{
                         return getFieldFormRoot(root,childField.parentFieldName)
                     }
                 )
-                if (childField.parentId in refreshOptionCache[uuid].parents){
-                    const parentField = refreshOptionCache[uuid].parents[childField.parentId]
+                if (childField.parentId in optionData.parents){
+                    const parentField = optionData.parents[childField.parentId]
                     parentField.secondLevelValues = {}
                     const optionsAsEntries = Object.entries(parentField.field.options)
                     for (let index = 0; index < optionsAsEntries.length; index++) {
                         const optionKey = optionsAsEntries[index][0]
                         const values = [optionKey]
-                        const formIdData = extractFormIdData(filterId,parentField,uuid)
+                        const formIdData = extractFormIdData(filterId,parentField,optionData)
                         if (canGetSecondValuesByForm(parentField,formIdData)){
                             formPromisesManager.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
-                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache[uuid].options)
+                                    return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,optionData.options)
                                         .then(([secondLevelValues,formModified,associations])=>{
                                             updateSecondLevelValues(optionKey,filterId,filterOption,childField,parentField,secondLevelValues,formModified,associations)
                                             return [secondLevelValues,formModified,associations]
@@ -246,7 +235,7 @@ if (Vue) {
                                         parentField,
                                         values,
                                         formIdData,
-                                        refreshOptionCache[uuid].options,
+                                        optionData.options,
                                         formIdData.isForm && formId === childField.linkedObjectId
                                     )
                                     .then(([secondLevelValues,formModified,associations])=>{
@@ -266,9 +255,9 @@ if (Vue) {
     }
     const refreshOptionsAsync = async (root) => {
         try {
-            const uuid = getUuid(root)
+            const optionData = utils.getOptionData(root)
             if (!utils.isSubLevel(root)
-                || Object.keys(refreshOptionCache?.[uuid].options).length > 0){
+                || Object.keys(optionData?.options ?? null).length > 0){
                 return
             }
             const filters = root.filters // TODO check if get computedFilters
@@ -278,8 +267,8 @@ if (Vue) {
                     const filter = filters[filterId];
                     (filter?.list ?? filter?.nodes).forEach((filterOption)=>{
                         const filterPropName = filterOption?.name ?? filter.propName
-                        if (!(filterPropName in refreshOptionCache[uuid].options)){
-                            refreshOption(filterPropName,filterOption,promisesData,root,uuid)
+                        if (!(filterPropName in optionData.options)){
+                            refreshOption(filterPropName,filterOption,promisesData,root,optionData)
                         }
                     })
                 }
@@ -291,8 +280,8 @@ if (Vue) {
                 root.filteredEntries = [...root.filteredEntries]
             }
             
-            Object.keys(refreshOptionCache[uuid].options).forEach((k)=>{
-                refreshOptionCache[uuid].options[k].status = 'done'
+            Object.keys(optionData.options).forEach((k)=>{
+                optionData.options[k].status = 'done'
                 // todo only update the right ones
             })
 

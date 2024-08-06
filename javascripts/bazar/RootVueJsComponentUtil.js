@@ -7,6 +7,8 @@
  * file that was distributed with this source code.
  */
 
+import optionRegistry from './options.registry.js'
+
 const canShowAnd = (root) => {
     return (root.params.intrafiltersmode === 'and')
 }
@@ -39,8 +41,16 @@ const isSubLevel = (root) => {
     return isSubLevelCache
 }
 
+const getUuid = (root) => root?._uid ?? 'unknown'
+
+const getOptionData = (root) => {
+    const uuid = getUuid(root)
+    return optionRegistry.getAndInitIfNeeded(uuid)
+}
+
 export default {
     canShowAnd,
     filterEntriesSync,
+    getOptionData,
     isSubLevel
 }
