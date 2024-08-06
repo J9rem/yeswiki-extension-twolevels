@@ -14,17 +14,6 @@ import twoLevelsHelper from '../twolevels.js'
 import utils from './RootVueJsComponentUtil.js'
 
 if (Vue) {
-    let isSubLevelCache = null
-    const isSubLevel = (root) => {
-        if (isSubLevelCache === null){
-            if (Object.keys(root.formFields).length === 0){
-                return false
-            }
-            isSubLevelCache = Object.values(root.formFields).some((field)=>('parentFieldName' in field && 'associatingFormId' in field))
-        }
-        return isSubLevelCache
-    }
-
 
     const getEntriesForThisField = (entries,fieldName,test) => {
         return entries.filter(entry => {
@@ -98,7 +87,7 @@ if (Vue) {
     }
 
     const updateVisibilityIfSublevel = (root) => {
-        if (!isSubLevel(root)){
+        if (!utils.isSubLevel(root)){
             return
         }
         const uuid = getUuid(root)
@@ -278,7 +267,7 @@ if (Vue) {
     const refreshOptionsAsync = async (root) => {
         try {
             const uuid = getUuid(root)
-            if (!isSubLevel(root)
+            if (!utils.isSubLevel(root)
                 || Object.keys(refreshOptionCache?.[uuid].options).length > 0){
                 return
             }

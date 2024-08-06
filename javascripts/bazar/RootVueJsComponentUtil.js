@@ -27,7 +27,20 @@ const filterEntriesSync = (entries,root) => {
     return results
 }
 
+
+let isSubLevelCache = null
+const isSubLevel = (root) => {
+    if (isSubLevelCache === null){
+        if (Object.keys(root.formFields).length === 0){
+            return false
+        }
+        isSubLevelCache = Object.values(root.formFields).some((field)=>('parentFieldName' in field && 'associatingFormId' in field))
+    }
+    return isSubLevelCache
+}
+
 export default {
     canShowAnd,
-    filterEntriesSync
+    filterEntriesSync,
+    isSubLevel
 }
