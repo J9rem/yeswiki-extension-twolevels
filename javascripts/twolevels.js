@@ -7,6 +7,8 @@
  * file that was distributed with this source code.
  */
 
+import eventDispatcher from './eventDispatcher.service.js'
+
 let allEntriesCache = {}
 let cache = {
     loadingAllEntries: [],
@@ -16,58 +18,7 @@ let cache = {
 }
 let correspondances = {}
 let entries = {}
-let eventsListeners = {}
 let forms = {}
-
-// event management 
-
-const addEvent = (eventName, listener, once = false) => {
-    if (typeof eventName == "string"){
-        if (!(eventName in eventsListeners)){
-            eventsListeners[eventName] = []
-        }
-        eventsListeners[eventName] = [
-            ...eventsListeners[eventName],
-            ...[{listener, once, triggered: false}]
-        ]
-    }
-}
-const addEventOnce = (eventName, listener) => {
-    addEvent(eventName,listener,true)
-}
-
-const setEventTriggered = (eventName) => {
-    if (typeof eventName == "string" && (eventName in eventsListeners)){
-        eventsListeners[eventName] = eventsListeners[eventName].map((evenData)=>{
-            evenData.triggered = true
-            return evenData
-        })
-    }
-}
-
-const cleanEvent = (eventName)=>{
-    eventsListeners[eventName] = eventsListeners[eventName].filter((eventData)=>{
-        return !eventData.once || !eventData.triggered
-    })
-}
-
-const dispatchEvent = (eventName, param = undefined)=>{
-    if (typeof eventName == "string"){
-        if (eventName in eventsListeners){
-            eventsListeners[eventName].forEach((eventData,idx)=>{
-                if (!eventData.once || !eventData.triggered){
-                    eventsListeners[eventName][idx].triggered = true
-                    if (param != undefined){
-                        eventData.listener(param)
-                    } else {
-                        eventData.listener()
-                    }
-                }
-            })
-            cleanEvent(eventName)
-        }
-    }
-}
 
 // manage forms
 
@@ -265,24 +216,24 @@ const formatParentField = (parentsContainer,childField,findFieldFunction) => {
 
 const manageInternalEvents = async(id,eventPrefix,loadingCacheName,asynFunc)=>{
     let p = new Promise((resolve,reject)=>{
-        addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve())
-        addEventOnce(`${eventPrefix}.${id}.error`,(e)=>reject(e))
+        eventDispatcher.addEventOnce(`${eventPrefix}.${id}.ready`,()=>resolve())
+        eventDispatcher.addEventOnce(`${eventPrefix}.${id}.error`,(e)=>reject(e))
         if (!cache[loadingCacheName].includes(id)){
             cache[loadingCacheName] = [...cache[loadingCacheName],id]
             let resettingLoadingForms = ()=>{
                 cache[loadingCacheName] = cache[loadingCacheName].filter((idToCheck)=>idToCheck!=id)
             }
-            addEventOnce(`${eventPrefix}.${id}.error`,resettingLoadingForms)
-            addEventOnce(`${eventPrefix}.${id}.ready`,resettingLoadingForms)
-            addEventOnce(`${eventPrefix}.${id}.ready`,()=>{
+            eventDispatcher.addEventOnce(`${eventPrefix}.${id}.error`,resettingLoadingForms)
+            eventDispatcher.addEventOnce(`${eventPrefix}.${id}.ready`,resettingLoadingForms)
+            eventDispatcher.addEventOnce(`${eventPrefix}.${id}.ready`,()=>{
                 setEventTriggered(`${eventPrefix}.${id}.error`)
             })
             asynFunc()
                 .then((...args)=>{
-                    dispatchEvent(`${eventPrefix}.${id}.ready`)
+                    eventDispatcher.dispatchEvent(`${eventPrefix}.${id}.ready`)
                     return Promise.resolve(...args)
                 })
-                .catch((e)=>{dispatchEvent(`${eventPrefix}.${id}.error`,e)})
+                .catch((e)=>{eventDispatcher.dispatchEvent(`${eventPrefix}.${id}.error`,e)})
         }
     })
     return await p.then((...args)=>Promise.resolve(...args))
