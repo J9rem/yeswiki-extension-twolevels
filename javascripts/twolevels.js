@@ -97,6 +97,10 @@ const appendChildrenFieldsPropertyNamestoParentForm = (form,parentField,linkedOb
                     if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
                         .includes(field.type) && field.linkedObjectName == wantedObjectName){
                         forms[formId].childrenFieldsPropertyNames[childId][field.propertyname] = field
+                        const oldName = `${field.type}${field.linkedObjectName}`
+                        if (field.propertyname.slice(0,oldName.length) !== oldName){
+                            forms[formId].childrenFieldsPropertyNames[childId][field.propertyname].oldName = oldName + field.name
+                        }
                     }
                 })
             }
@@ -138,6 +142,10 @@ const appendParentsFieldsPropertyNamestoParentForm = (form,fieldName,parentField
             if ((isEnum(field) && field.linkedObjectName == parentField.linkedObjectId) ||
                 (isEnumList && parentField.linkedObjectId.slice(0,field.linkedObjectName.length) == field.linkedObjectName)){
                     forms[formId].parentsFieldsPropertyNames[fieldName][field.propertyname] = field
+                    const oldName = `${field.type}${field.linkedObjectName}`
+                    if (field.propertyname.slice(0,oldName.length) !== oldName){
+                        forms[formId].parentsFieldsPropertyNames[fieldName][field.propertyname].oldName = oldName + field.name
+                    }
             }
         })
     }
@@ -168,17 +176,22 @@ const appendReverseParentsFieldsPropertyNamestoParentForm = (form,fieldName,pare
             if (["checkbox","checkboxfiche","radio","radiofiche","liste","listefiche","enumlevel2"]
                 .includes(field.type) && field.linkedObjectName == childId){
                     forms[formId].reverseParentsFieldsPropertyNames[fieldName][field.propertyname] = field
+                    const oldName = `${field.type}${field.linkedObjectName}${field.name}`
+                    if (oldName?.length > field.propertyname?.length){
+                        forms[formId].reverseParentsFieldsPropertyNames[fieldName][field.propertyname].oldName = oldName
+                    }
             }
         })
     }
     return forms[formId]
 }
 
-const appendToArrayIfInEntry = (entry,propName,currentArray,registerAssociation = null)=>{
-    if (propName in entry && 
-            typeof entry[propName] == "string" && 
-            entry[propName].length > 0){ 
-        entry[propName].split(',').forEach((value)=>{
+const appendToArrayIfInEntry = (entry,propName,currentArray,oldPropName = '',registerAssociation = null)=>{
+    const sanitizedPropName = propName in entry ? propName : oldPropName
+    if (sanitizedPropName in entry && 
+            typeof entry[sanitizedPropName] == "string" && 
+            entry[sanitizedPropName].length > 0){ 
+        entry[sanitizedPropName].split(',').forEach((value)=>{
             if (!currentArray.includes(value)){
                 currentArray.push(value)
             }
@@ -405,7 +418,12 @@ const getAvailableSecondLevelsValues = async (parentForm,parentField,values,link
                     if (parentEntryId in entries){
                         let parentEntry = entries[parentEntryId]
                         for (let propName in parentForm.childrenFieldsPropertyNames[childId]){
-                            secondLevelValues[childId] = appendToArrayIfInEntry(parentEntry,propName,secondLevelValues[childId],(value)=>{
+                            secondLevelValues[childId] = appendToArrayIfInEntry(
+                                parentEntry,
+                                propName,
+                                secondLevelValues[childId],
+                                parentForm.childrenFieldsPropertyNames[childId][propName]?.oldName ?? '',
+                                (value)=>{
                                 if (!(value in associations[childId])){
                                     associations[childId][value] = []
                                 }
@@ -494,12 +512,22 @@ const getCorrespondances = async (associatingForm,fieldName) => {
         fieldName,
         getParentsAndChildren:(tmp,entry)=>{
             for (const propertyName in associatingForm.parentsFieldsPropertyNames[fieldName]) {
-                tmp.parents = appendToArrayIfInEntry(entry,propertyName,tmp.parents)
+                tmp.parents = appendToArrayIfInEntry(
+                    entry,
+                    propertyName,
+                    tmp.parents,
+                    associatingForm.parentsFieldsPropertyNames[fieldName][propertyName]?.oldName ?? ''
+                )
             }
             for (const childId in associatingForm.childrenFieldsPropertyNames) {
                 tmp.children[childId] = []
                 for (const propertyName in associatingForm.childrenFieldsPropertyNames[childId]) {
-                    tmp.children[childId] = appendToArrayIfInEntry(entry,propertyName,tmp.children[childId])
+                    tmp.children[childId] = appendToArrayIfInEntry(
+                        entry,
+                        propertyName,
+                        tmp.children[childId],
+                        associatingForm.childrenFieldsPropertyNames[childId][propertyName]?.oldName ?? ''
+                    )
                 }
             }
         }
@@ -516,11 +544,21 @@ const getCorrespondancesReverse = async (associatingForm,fieldName,wantedFieldId
                     return k == wantedFieldId || associatingForm.reverseParentsFieldsPropertyNames[fieldName][k].name == wantedFieldId
                 })
                 foundFields.forEach((k)=>{
-                    tmp.parents = appendToArrayIfInEntry(entry,k,tmp.parents)
+                    tmp.parents = appendToArrayIfInEntry(
+                        entry,
+                        k,
+                        tmp.parents,
+                        foundFields[k]?.oldName ?? ''
+                    )
                 })
             } else {
                 for (const propertyName in associatingForm.reverseParentsFieldsPropertyNames[fieldName]) {
-                    tmp.parents = appendToArrayIfInEntry(entry,propertyName,tmp.parents)
+                    tmp.parents = appendToArrayIfInEntry(
+                        entry,
+                        propertyName,
+                        tmp.parents,
+                        associatingForm.reverseParentsFieldsPropertyNames[fieldName][propertyName]?.oldName ?? ''
+                    )
                 }
             }
             
@@ -531,7 +569,12 @@ const getCorrespondancesReverse = async (associatingForm,fieldName,wantedFieldId
             wantedIds.forEach((childId)=>{
                 tmp.children[childId] = []
                 for (const propertyName in associatingForm.reverseChildrenFieldsPropertyNames[childId]) {
-                    tmp.children[childId] = appendToArrayIfInEntry(entry,propertyName,tmp.children[childId])
+                    tmp.children[childId] = appendToArrayIfInEntry(
+                        entry,
+                        propertyName,
+                        tmp.children[childId],
+                        associatingForm.reverseChildrenFieldsPropertyNames[childId][propertyName]?.oldName ?? ''
+                    )
                 }
             })
         }
