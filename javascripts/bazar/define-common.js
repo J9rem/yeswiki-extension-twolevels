@@ -11,6 +11,7 @@ import allEntriesLoader from '../allEntriesLoader.service.js'
 import formPromisesManager from '../formPromises.service.js'
 import FilterLoadRoot from './FilterLoadRootComponent.js'
 import twoLevelsHelper from '../twolevels.js'
+import visibilityManager from './visibility.service.js'
 import utils from './RootVueJsComponentUtil.js'
 
 if (Vue) {
@@ -37,68 +38,6 @@ if (Vue) {
             }
             root.$set(option,'count', option.nb)
         }
-    }
-
-    const getFilterFromPropName = (filterName, filters) => {
-        return !(filterName?.length > 0)
-            ? null
-            : (
-                filterName in filters
-                ? filterName
-                : filters.reduce((previousFilter, filter) => {
-                    return previousFilter !== null
-                        ? previousFilter
-                        : (
-                            (
-                                filter?.propName == filterName
-                                || (
-                                    filter?.propName?.slice(-filterName.length) == filterName
-                                    && filter?.propName?.slice(0,-filterName.length)?.match(/^(liste|radio|checkbox)(Liste\S+|\d+)/)
-                                )
-                            )
-                            ? filter
-                            : null
-                        )
-                }, null)
-            )
-    }
-
-    const updateVisibilityIfSublevel = (root) => {
-        if (!utils.isSubLevel(root)){
-            return
-        }
-        const optionData = utils.getOptionData(root)
-        Object.entries(root.filters).forEach(([key,filter])=>{
-            const fieldName = filter?.propName ?? key
-            if (fieldName in optionData.options){
-                const childField = optionData.options[fieldName]
-                const parentFilter = getFilterFromPropName(childField?.parentId ?? '', root.filters)
-                if (childField.parentId
-                    && childField.parentId.length > 0
-                    && childField.parentId in optionData.parents
-                    && parentFilter){
-                    const parentField = optionData.parents[childField.parentId]
-                    const parentValues = (parentFilter?.list ?? parentFilter?.nodes ?? []).filter((option)=>option.checked).map(option=>option.value)
-                    const parentValueIsChecked = (parentValue,option)=>{
-                        return (parentValue in parentField.secondLevelValues)
-                            ? parentField.secondLevelValues[parentValue].includes(option.value)
-                            : false
-                    }
-                    for (let index = 0; index < (filter?.list ?? filter.nodes).length; index++) {
-                        const option = (filter?.list ?? filter.nodes)[index]
-                        option.hide = utils.canShowAnd(root)
-                            ? !parentValues.every((parentValue)=>parentValueIsChecked(parentValue,option))
-                            : !parentValues.some((parentValue)=>parentValueIsChecked(parentValue,option))
-                    }
-                }
-            }
-            if (fieldName in optionData.parents){
-                for (let index = 0; index < (filter?.list ?? filter.nodes).length; index++) {
-                    const option = (filter?.list ?? filter.nodes)[index]
-                    option.forceShow = true
-                }
-            }
-        })
     }
 
     const extractFormIdData = (fieldName,parentField,optionData) => {
@@ -295,7 +234,7 @@ if (Vue) {
             }
             availableEntriesForThisFilter = utils.filterEntriesSync(availableEntriesForThisFilter,root)
             updateNbForEachFilter(root,fieldName,availableEntriesForThisFilter)
-            updateVisibilityIfSublevel(root)
+            visibilityManager.updateVisibilityIfSublevel(root)
         }
         return root.filters;
     };
