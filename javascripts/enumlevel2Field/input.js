@@ -6,6 +6,8 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+import allEntriesLoader from '../allEntriesLoader.service.js'
+import formPromisesManager from '../formPromises.service.js'
 import twoLevelsHelper from '../twolevels.js'
 
 // create a new Event `propChange`
@@ -636,7 +638,7 @@ const enumlevel2Helper = {
             if (typeof parentsFields != "object"){
                 throw "'parentsFields' should be an object with format 'fieldName' => field"
             } else {
-                let promisesData = twoLevelsHelper.initPromisesData()
+                let promisesData = formPromisesManager.initPromisesData()
                 for (let fieldName in parentsFields){
                     let parentField = parentsFields[fieldName]
                     if (parentField && parentField.linkedObjectId.length > 0){
@@ -650,7 +652,7 @@ const enumlevel2Helper = {
                                 )
                             )
                         if (canGetSecondValuesByForm){
-                            twoLevelsHelper.createPromise(promisesData,{
+                            formPromisesManager.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.levels2)
@@ -667,7 +669,7 @@ const enumlevel2Helper = {
                         } else {
                             for (let formIdData of formsIds){
                                 const formId = formIdData.id
-                                twoLevelsHelper.createPromise(promisesData,{
+                                formPromisesManager.createPromise(promisesData,{
                                     formId,
                                     processFormAsync: async (form)=>{
                                         return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(
@@ -685,14 +687,14 @@ const enumlevel2Helper = {
                                         })
                                     },
                                     getEntriesAsync: ()=>{
-                                        return twoLevelsHelper.getAllEntries(formId)
+                                        return allEntriesLoader.load(formId)
                                     },
                                     getEntriesLabel: `getting all entries of form ${formId}`})
                             }
                         }
                     }
                 }
-                return await twoLevelsHelper.resolvePromises(promisesData)
+                return await formPromisesManager.resolvePromises(promisesData)
             }
         },
         updateRadio(field,secondLevelValues,childId,parentValuesAssociations){
