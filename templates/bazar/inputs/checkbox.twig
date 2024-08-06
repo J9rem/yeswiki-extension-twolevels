@@ -1,0 +1,17 @@
+{# # This file is part of the YesWiki Extension twolevels.
+# Authors : see README.md file that was distributed with this source code.
+# For the full copyright and license information, please view the LICENSE
+# file that was distributed with this source code. 
+#}
+
+{{ include_css("tools/twolevels/styles/enum-field.css") }}
+<span class="enum-to-level-field-linked-object-name" data-field-linked-object-name="{{field.linkedObjectName}}"></span>
+</span>
+{{ include([
+    "custom/templates/tools/bazar/templates/inputs/checkbox.twig",
+    "custom/templates/bazar/templates/inputs/checkbox.twig",
+    "custom/templates/bazar/inputs/checkbox.twig",
+    "themes/tools/bazar/templates/inputs/checkbox.twig",
+    "themes/tools/bazar/inputs/checkbox.twig",
+    "tools/bazar/templates/inputs/checkbox.twig",
+    ],{renderedFromTwoLevels:true}) }}

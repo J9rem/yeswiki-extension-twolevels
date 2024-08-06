@@ -24,6 +24,15 @@
       '<div class="checkbox" v-for="filterOption, id in filter.list" :key="id">':'<template v-for="filterOption, id in filter.list">
         <template v-if="isDisplayedFilterOption(filterOption,$root)">
           <div class="checkbox" :key="id">',
+      '<div v-else class="checkbox" v-for="filterOption, id in filter.list" :key="id">':'<template v-for="filterOption, id in filter.list">
+        <template v-if="isDisplayedFilterOption(filterOption,$root)">
+          <div class="checkbox" :key="id">',
       '<span class="nb" v-if="filterOption.nb">':'<span class="nb">',
-      '</Panel>':'</template></template></Panel></template>'
+      '</Panel>':'</template></template></Panel></template>',
+      '<template v-if="filter.listTree">': '<template v-if="filterHasAtLeastOneOption(filter,$root) && filter.listTree">',
+      '<Filter-Option v-for="filterOption, id in filter.listTree" :key="id" :option="filterOption" />': '<template v-for="filterOption, id in filter.listTree">
+          <template v-if="isDisplayedFilterOption(filterOption,$root)">
+            <Filter-Option :key="id" :option="filterOption" />
+          </template>
+        </template>'
     })|raw }}

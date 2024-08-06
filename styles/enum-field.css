@@ -7,8 +7,6 @@
  * file that was distributed with this source code.
  */
 
-import vueConfigurator from './vue.configurator.js'
-
-if (Vue) {
-    vueConfigurator.init()
+.enum-to-level-field-linked-object-name {
+  display: none;
 }

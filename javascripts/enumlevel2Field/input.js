@@ -6,6 +6,8 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
+import allEntriesLoader from '../allEntriesLoader.service.js'
+import formPromisesManager from '../formPromises.service.js'
 import twoLevelsHelper from '../twolevels.js'
 
 // create a new Event `propChange`
@@ -154,43 +156,15 @@ const enumlevel2Helper = {
             }
             return id.replace(/\[.*$/,'')
         },
-        extractLinkedObjectIdForCheckox(node, mode = "group-checkbox-", type = "checkbox"){
-            let linkedObjectId = ""
-            let fieldPropertyName = ""
-            node.classList.forEach((className)=>{
-                let match = className.match(new RegExp(`^${mode}((?:${type}fiche[0-9]*|${type}Liste[A-Za-z0-9\-_]+)[A-Za-z0-9_\\-]*)$`))
-                if (match && match[1].length > 0){
-                    fieldPropertyName = match[1] 
-                }
-            })
-            if (fieldPropertyName.length > 0){
-                let fieldName = "[A-Za-z0-9_\\-]*"
-                if (fieldPropertyName in this.levels2
-                    && this.levels2[fieldPropertyName].fieldName.length > 0){
-                    fieldName = this.levels2[fieldPropertyName].fieldName
-                }
-                
-                let match = fieldPropertyName.match(new RegExp(`^(?:${type}fiche([0-9]*)|${type}(Liste[A-Za-z0-9\-_]+))${fieldName}$`))
-                if (match && ((match[1] && match[1].length > 0) || (match[2] && match[2].length > 0))){
-                    linkedObjectId = match[1] ?? match[2]
+        extractLinkedObjectId(node){
+            const parent = $(node).closest('.form-group.control-group')
+            if (parent?.length > 0){
+                const previous = parent?.prev()?? null
+                if (previous?.length > 0 && previous.hasClass('enum-to-level-field-linked-object-name')){
+                    return previous?.data('fieldLinkedObjectName') ?? ''
                 }
             }
-            return linkedObjectId
-        },
-        extractLinkedObjectIdForRadioOrListe(name, type){
-            let linkedObjectId = ""
-            if (name.length > 0){
-                let fieldName = "[A-Za-z0-9_\\-]*"
-                if (name in this.levels2 
-                    && this.levels2[name].fieldName.length > 0){
-                    fieldName = this.levels2[name].fieldName
-                }
-                let match = name.match(new RegExp(`^(?:${type}fiche([0-9]*)|${type}(Liste[A-Za-z0-9\-_]+))${fieldName}$`))
-                if (match && ((match[1] && match[1].length > 0) || (match[2] && match[2].length > 0))){
-                    linkedObjectId = match[1] ?? match[2]
-                }
-            }
-            return linkedObjectId
+            return ''
         },
         extractListOfAssociatingForms(fieldName,parentField){
             if (typeof fieldName != "string" || fieldName.length == 0){
@@ -236,7 +210,7 @@ const enumlevel2Helper = {
                 type: "checkbox",
                 nodes: inputsNodes,
                 propertyname: this.extractIdForCheckbox($(filteredElements[0]).find('input')[0]), // keep only the first one
-                linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0]) // keep only the first one
+                linkedObjectId: this.extractLinkedObjectId(filteredElements[0]) // keep only the first one
             }
         },
         findCheckboxDragAndDrop(fieldName){
@@ -266,16 +240,13 @@ const enumlevel2Helper = {
                 type: "checkboxdraganddrop",
                 nodes: inputsNodes,
                 propertyname: this.extractIdForCheckbox(filteredElements[0]), // keep only the first one
-                linkedObjectId: this.extractLinkedObjectIdForCheckox(filteredElements[0],"group-") // keep only the first one
+                linkedObjectId: this.extractLinkedObjectId(filteredElements[0]) // keep only the first one
             }
         },
         findCheckboxTag(fieldName){            
             let elements = document.querySelectorAll(`input[class$=${fieldName}].yeswiki-input-entries`)
             if (!elements || elements.length == 0) return null
-            let linkedObjectId = this.extractLinkedObjectIdForCheckox(elements[0],"yeswiki-input-entries"); // keep only the first one
-            if (!linkedObjectId || linkedObjectId.length == 0){
-                linkedObjectId = this.extractLinkedObjectIdForCheckox(elements[0],"yeswiki-input-entries","radio"); // keep only the first one
-            }
+            let linkedObjectId = this.extractLinkedObjectId(elements[0]); // keep only the first one
             return {
                     type: "checkboxtag",
                     node: elements[0],
@@ -303,7 +274,7 @@ const enumlevel2Helper = {
                     type: "select",
                     node: elements[0],
                     propertyname: $(elements[0]).prop('name'), // keep only the first one
-                    linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"liste")
+                    linkedObjectId: this.extractLinkedObjectId(elements[0])
                 }
         },
         findRadio(fieldName){
@@ -319,7 +290,7 @@ const enumlevel2Helper = {
                     type: "radio",
                     nodes: inputsNodes,
                     propertyname: $(elements[0]).prop('name'), // keep only the first one
-                    linkedObjectId: this.extractLinkedObjectIdForRadioOrListe(elements[0].getAttribute('name'),"radio")
+                    linkedObjectId: this.extractLinkedObjectId(elements[0])
             }
         },
         getAssociatedCheckboxLabels(parentFieldName,currentValue,parentValuesAssociations){
@@ -426,7 +397,9 @@ const enumlevel2Helper = {
                     childField.type = field.type
                     childField.node = 'node' in field ? field.node : null 
                     childField.nodes = 'nodes' in field ? field.nodes : null 
-                    childField.linkedObjectId = field.linkedObjectId 
+                    childField.linkedObjectId = field?.linkedObjectId?.length > 0
+                        ? field?.linkedObjectId
+                        : (fieldData?.linkedObjectName ?? '')
                     twoLevelsHelper.formatParentField(
                         this.parents,
                         childField,
@@ -665,7 +638,7 @@ const enumlevel2Helper = {
             if (typeof parentsFields != "object"){
                 throw "'parentsFields' should be an object with format 'fieldName' => field"
             } else {
-                let promisesData = twoLevelsHelper.initPromisesData()
+                let promisesData = formPromisesManager.initPromisesData()
                 for (let fieldName in parentsFields){
                     let parentField = parentsFields[fieldName]
                     if (parentField && parentField.linkedObjectId.length > 0){
@@ -679,7 +652,7 @@ const enumlevel2Helper = {
                                 )
                             )
                         if (canGetSecondValuesByForm){
-                            twoLevelsHelper.createPromise(promisesData,{
+                            formPromisesManager.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,this.levels2)
@@ -696,7 +669,7 @@ const enumlevel2Helper = {
                         } else {
                             for (let formIdData of formsIds){
                                 const formId = formIdData.id
-                                twoLevelsHelper.createPromise(promisesData,{
+                                formPromisesManager.createPromise(promisesData,{
                                     formId,
                                     processFormAsync: async (form)=>{
                                         return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(
@@ -714,14 +687,14 @@ const enumlevel2Helper = {
                                         })
                                     },
                                     getEntriesAsync: ()=>{
-                                        return twoLevelsHelper.getAllEntries(formId)
+                                        return allEntriesLoader.load(formId)
                                     },
                                     getEntriesLabel: `getting all entries of form ${formId}`})
                             }
                         }
                     }
                 }
-                return await twoLevelsHelper.resolvePromises(promisesData)
+                return await formPromisesManager.resolvePromises(promisesData)
             }
         },
         updateRadio(field,secondLevelValues,childId,parentValuesAssociations){
