@@ -76,10 +76,31 @@ const getFieldFromRoot = (root,fieldName) => {
     return null
 }
 
+const pushIfNotPresent = (value,data) => {
+    if (!data.a.includes(value)){
+        data.a.push(value)
+    }
+}
+
+const getChekedFilters = (root) => {
+    let filters = [];
+    for(let fieldName in root.filters) {
+        const filter = root.filters[fieldName]
+        for (let option of (filter?.list ?? filter.nodes)) {
+            if (option.checked) {
+                pushIfNotPresent(fieldName,{a:filters})
+            }
+        }
+    }
+    return filters
+}
+
 export default {
     canShowAnd,
     filterEntriesSync,
+    getChekedFilters,
     getFieldFromRoot,
     getOptionData,
-    isSubLevel
+    isSubLevel,
+    pushIfNotPresent
 }

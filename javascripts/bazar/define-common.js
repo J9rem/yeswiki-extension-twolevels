@@ -101,21 +101,6 @@ if (Vue) {
         })
     }
 
-    const getCheckedFiltersWithMoreThanOne = (root) => {
-        let modeThanOneCheckedFiltersName = [];
-        for(let fieldName in root.filters) {
-            const filter = root.filters[fieldName]
-            for (let option of (filter?.list ?? filter.nodes)) {
-                if (option.checked) {
-                    if (!modeThanOneCheckedFiltersName.includes(fieldName)){
-                        modeThanOneCheckedFiltersName.push(fieldName)
-                    }
-                }
-            }
-        }
-        return modeThanOneCheckedFiltersName
-    }
-
     const extractFormIdData = (fieldName,parentField,optionData) => {
         if (!('listOfAssociatingForms' in parentField)){
             parentField.listOfAssociatingForms = {}
@@ -284,7 +269,7 @@ if (Vue) {
     Vue.component('FilterLoadRoot', FilterLoadRoot);
     Vue.prototype.refreshedFiltersWithentries = function(entries,root){
         refreshOptionsAsync(root)
-        const modeThanOneCheckedFiltersName = getCheckedFiltersWithMoreThanOne(root)
+        const modeThanOneCheckedFiltersName = utils.getChekedFilters(root)
         for(let fieldName in root.filters) {
             let availableEntriesForThisFilter = root.searchedEntries;
             if (root.params.template === "map"){
