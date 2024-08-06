@@ -26,29 +26,6 @@ if (Vue) {
         })
     }
 
-    const getFieldFormRoot = (root,fieldName) => {
-        if ('formFields' in root 
-            && typeof root.formFields === 'object'
-            && Object.keys(root.formFields).length > 0){
-            if (fieldName in root.formFields){
-                return root.formFields[fieldName]
-            }
-            for (const key in root.formFields) {
-                if (Object.hasOwnProperty.call(root.formFields, key)) {
-                    const field = root.formFields[key];
-                    if ('name' in field && (
-                                field.name === fieldName
-                                || field.name === ('' + field.type + field.linkedObjectName + fieldName)
-                            )
-                        ){
-                        return field
-                    }
-                }
-            }
-        }
-        return null
-    }
-
     const updateNbForEachFilter = (root,fieldName,availableEntriesForThisFilter) => {
         const filter = root.filters[fieldName]
         for (let option of (filter?.list ?? filter.nodes)) {
@@ -179,7 +156,7 @@ if (Vue) {
     }
 
     const refreshOption = (filterId, filterOption,promisesData,root,optionData) => {
-        const field = getFieldFormRoot(root,filterId)
+        const field = utils.getFieldFromRoot(root,filterId)
         if (field !== null && Object.keys(field).length > 0
             && !(filterId in optionData.options)){
             // start refresh
@@ -198,7 +175,7 @@ if (Vue) {
                     optionData.parents,
                     childField,
                     ()=>{
-                        return getFieldFormRoot(root,childField.parentFieldName)
+                        return utils.getFieldFromRoot(root,childField.parentFieldName)
                     }
                 )
                 if (childField.parentId in optionData.parents){

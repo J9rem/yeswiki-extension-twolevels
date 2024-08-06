@@ -48,9 +48,38 @@ const getOptionData = (root) => {
     return optionRegistry.getAndInitIfNeeded(uuid)
 }
 
+const searchFieldByName = (fieldName,fields) => {
+    for (const key in fields) {
+        if (Object.hasOwnProperty.call(fields, key)) {
+            const field = fields[key];
+            if ('name' in field && (
+                        field.name === fieldName
+                        || field.name === ('' + field.type + field.linkedObjectName + fieldName)
+                    )
+                ){
+                return field
+            }
+        }
+    }
+    return null
+}
+
+const getFieldFromRoot = (root,fieldName) => {
+    if ('formFields' in root 
+        && typeof root.formFields === 'object'
+        && Object.keys(root.formFields).length > 0){
+        if (fieldName in root.formFields){
+            return root.formFields[fieldName]
+        }
+        return searchFieldByName(fieldName, root.formFields)
+    }
+    return null
+}
+
 export default {
     canShowAnd,
     filterEntriesSync,
+    getFieldFromRoot,
     getOptionData,
     isSubLevel
 }
