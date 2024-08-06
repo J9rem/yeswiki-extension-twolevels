@@ -8,6 +8,7 @@
  */
 
 import allEntriesLoader from '../allEntriesLoader.service.js'
+import formPromisesManager from '../formPromises.service.js'
 import twoLevelsHelper from '../twolevels.js'
 
 if (Vue) {
@@ -216,7 +217,7 @@ if (Vue) {
                         const values = [optionKey]
                         const formIdData = extractFormIdData(filterOption.name,parentField,uuid)
                         if (canGetSecondValuesByForm(parentField,formIdData)){
-                            twoLevelsHelper.createPromise(promisesData,{
+                            formPromisesManager.createPromise(promisesData,{
                                 formId: parentField.linkedObjectId,
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValues(form,parentField,values,refreshOptionCache[uuid].options)
@@ -232,7 +233,7 @@ if (Vue) {
                             )
                         } else {
                             const formId = formIdData.id
-                            twoLevelsHelper.createPromise(promisesData,{
+                            formPromisesManager.createPromise(promisesData,{
                                 formId,
                                 processFormAsync: async (form)=>{
                                     return twoLevelsHelper.getAvailableSecondLevelsValuesForLists(
@@ -267,7 +268,7 @@ if (Vue) {
                 return
             }
             const filters = root.filters // TODO check if get computedFilters
-            let promisesData = twoLevelsHelper.initPromisesData()
+            let promisesData = formPromisesManager.initPromisesData()
             for (const filterId in filters) {
                 if (Object.hasOwnProperty.call(filters, filterId)) {
                     const filter = filters[filterId]
@@ -279,7 +280,7 @@ if (Vue) {
                 }
             }
             if (promisesData.promises.length > 0){
-                await twoLevelsHelper.resolvePromises(promisesData)
+                await formPromisesManager.resolvePromises(promisesData)
                 // something could have changes
                 // trigger update entries
                 root.filteredEntries = [...root.filteredEntries]
