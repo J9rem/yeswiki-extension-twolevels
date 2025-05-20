@@ -161,7 +161,8 @@ const enumlevel2Helper = {
             if (parent?.length > 0){
                 const previous = parent?.prev()?? null
                 if (previous?.length > 0 && previous.hasClass('enum-to-level-field-linked-object-name')){
-                    return previous?.data('fieldLinkedObjectName') ?? ''
+                    //force string
+                    return (previous?.data('fieldLinkedObjectName') ?? '') + ''
                 }
             }
             return ''
@@ -262,7 +263,7 @@ const enumlevel2Helper = {
                 this.findRadio(name) ||
                 null
             if (field && associatingFormId.length > 0){
-                field.linkedObjectId = field.linkedObjectId.replace(new RegExp(`${name}$`),'')
+                field.linkedObjectId = field?.linkedObjectId?.replace(new RegExp(`${name}$`),'') ?? ''
             }
             return field
         },
